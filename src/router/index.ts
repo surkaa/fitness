@@ -1,23 +1,20 @@
-import RoutineDetail from "../views/RoutineDetail.vue";
-import ExerciseDetail from "../views/ExerciseDetail.vue";
-import Home from "../views/Home.vue";
 import {createRouter, createWebHashHistory, RouteRecordRaw} from "vue-router";
 
 const routes = [
     {
         path: '/',
         name: 'Home',
-        component: Home
+        component: () => import('../views/Home.vue')
     },
     {
         path: '/routine/:id',
         name: 'RoutineDetail',
-        component: RoutineDetail
+        component: () => import('../views/RoutineDetail.vue')
     },
     {
         path: '/exercise/:id',
         name: 'ExerciseDetail',
-        component: ExerciseDetail
+        component: () => import('../views/ExerciseDetail.vue')
     },
 ] as RouteRecordRaw[];
 
