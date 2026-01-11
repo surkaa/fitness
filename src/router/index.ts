@@ -4,9 +4,21 @@ import Home from "../views/Home.vue";
 import {createRouter, createWebHashHistory, RouteRecordRaw} from "vue-router";
 
 const routes = [
-    {path: '/', component: Home},
-    {path: '/routine/:id', component: RoutineDetail},
-    {path: '/exercise/:id', component: ExerciseDetail},
+    {
+        path: '/',
+        name: 'Home',
+        component: Home
+    },
+    {
+        path: '/routine/:id',
+        name: 'RoutineDetail',
+        component: RoutineDetail
+    },
+    {
+        path: '/exercise/:id',
+        name: 'ExerciseDetail',
+        component: ExerciseDetail
+    },
 ] as RouteRecordRaw[];
 
 const router = createRouter({
