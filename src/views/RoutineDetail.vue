@@ -1,5 +1,5 @@
 <template>
-  <div class="q-pa-md">
+  <q-page padding>
     <div class="row items-center q-mb-md">
       <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
       <div class="text-h5 q-ml-sm">训练动作列表</div>
@@ -103,7 +103,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </div>
+  </q-page>
 </template>
 
 <script setup lang="ts">

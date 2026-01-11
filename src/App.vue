@@ -1,3 +1,7 @@
+<script setup lang="ts"></script>
+
 <template>
-  <router-view/>
+  <q-layout>
+    <router-view/>
+  </q-layout>
 </template>
