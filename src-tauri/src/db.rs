@@ -43,13 +43,6 @@ pub struct Record {
     pub reps: Option<i64>,
 }
 
-// 用于前端展示历史趋势的数据结构
-#[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct HistoryItem {
-    pub date: String,
-    pub weight: f64,
-}
-
 pub struct Database {
     pool: Pool<Sqlite>,
 }
@@ -234,30 +227,5 @@ impl Database {
         .bind(offset)
         .fetch_all(&self.pool)
         .await
-    }
-
-    /// 核心功能: 按动作id分页获取重量历史趋势
-    pub async fn page_progress_by_exercise_id(
-        &self,
-        exercise_id: i64,
-        page: i64,
-        page_size: i64,
-    ) -> Result<Vec<HistoryItem>, sqlx::Error> {
-        let offset = (page - 1) * page_size;
-        let items = sqlx::query_as::<_, HistoryItem>(
-            "SELECT
-                     DATE(r.created_at) AS `date`,
-                     r.weight
-                 FROM records r
-                 WHERE r.exercise_id = ?
-                 ORDER BY r.created_at DESC
-                 LIMIT ? OFFSET ?",
-        )
-        .bind(exercise_id)
-        .bind(page_size)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(items)
     }
 }
