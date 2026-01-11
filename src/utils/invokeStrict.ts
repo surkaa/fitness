@@ -21,18 +21,18 @@ interface CommandMap {
     };
     // 删除轮次
     delete_routine: {
-        args: { routine_id: number };
+        args: { routineId: number };
         result: null; // Result<(), String> 成功通常返回 null
     };
     // 获取轮次下的动作
     get_exercises: {
-        args: { routine_id: number };
+        args: { routineId: number };
         result: Exercise[];
     };
     // 添加动作
     add_exercise: {
         args: {
-            routine_id: number;
+            routineId: number;
             name: string;
             sets: number;
             reps: string;
@@ -43,13 +43,13 @@ interface CommandMap {
     };
     // 删除动作
     delete_exercise: {
-        args: { exercise_id: number };
+        args: { exerciseId: number };
         result: null;
     };
     // 记录一次最大重量
     add_record: {
         args: {
-            exercise_id: number;
+            exerciseId: number;
             weight: number;
             reps: number | null; // Option<i64>
         };
@@ -57,13 +57,13 @@ interface CommandMap {
     };
     // 删除记录
     delete_record: {
-        args: { record_id: number };
+        args: { recordId: number };
         result: null;
     };
     // 分页获取记录
     page_records: {
         args: {
-            exercise_id: number;
+            exerciseId: number;
             page: number;
             page_size: number;
         };
