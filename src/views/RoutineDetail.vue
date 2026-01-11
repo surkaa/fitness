@@ -1,11 +1,11 @@
 <template>
-  <q-page padding>
+  <q-page class="q-pa-md column">
     <div class="row items-center q-mb-md">
       <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
       <div class="text-h5 q-ml-sm">训练动作列表</div>
     </div>
 
-    <div v-if="exercises.length === 0" class="text-center text-grey q-mt-xl">
+    <div v-if="exercises.length === 0" class="col flex flex-center column text-grey">
       <q-icon name="fitness_center" size="64px"/>
       <div class="q-mt-md">还没有动作，点击右下角添加</div>
     </div>
