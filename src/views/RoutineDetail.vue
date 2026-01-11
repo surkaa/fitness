@@ -2,7 +2,7 @@
   <q-page class="q-pa-md column">
     <div class="row items-center q-mb-md">
       <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
-      <div class="text-h5 q-ml-sm">训练动作列表</div>
+      <div class="text-h6 q-ml-md">{{ routineName || '训练动作列表' }}</div>
     </div>
 
     <div v-if="exercises.length === 0" class="col flex flex-center column text-grey">
@@ -121,6 +121,7 @@ const $q = useQuasar();
 
 // 路由参数 ID
 const routineId = Number(route.params.id);
+const routineName = history.state.name;
 
 // 状态
 const exercises = ref<Exercise[]>([]);

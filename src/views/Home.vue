@@ -37,7 +37,7 @@
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
         <RoutineCard
             :routine="r"
-            @click="goToRoutine(r.id)"
+            @click="goToRoutine(r)"
             @delete="handleDelete(r.id)"
         />
       </div>
@@ -108,10 +108,13 @@ async function handleCreateRoutine() {
   }
 }
 
-function goToRoutine(id: number) {
+function goToRoutine(r: Routine) {
   router.push({
     name: 'RoutineDetail',
-    params: {id}
+    params: {id: r.id},
+    state: {
+      name: r.name
+    }
   });
 }
 
