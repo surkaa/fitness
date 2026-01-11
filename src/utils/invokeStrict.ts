@@ -1,30 +1,6 @@
 import {invoke} from "@tauri-apps/api/core";
 import {Ref} from "vue";
-
-export interface Routine {
-    id: number;
-    name: string;
-    description: string | null;
-}
-
-export interface Exercise {
-    id: number;
-    routine_id: number;
-    name: string;
-    target_sets: number;
-    target_reps: string;
-    note: string | null;
-    unit: string;
-}
-
-export interface Record {
-    id: number;
-    exercise_id: number;
-    // ISO 8601 字符串
-    created_at: string;
-    weight: number;
-    reps: number | null;
-}
+import {Exercise, ExerciseRecord, Routine} from "../types.ts";
 
 /**
  * CommandMap: 定义每个 Tauri 命令的参数和返回值
@@ -91,7 +67,7 @@ interface CommandMap {
             page: number;
             page_size: number;
         };
-        result: Record[];
+        result: ExerciseRecord[];
     };
 }
 
