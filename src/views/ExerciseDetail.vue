@@ -38,7 +38,7 @@
             {{ record.weight }} <span class="text-caption text-grey-7">{{ unit }}</span>
           </q-item-label>
           <q-item-label caption>
-            {{ formatDate(record.createdAt) }} · {{ record.reps ? `${record.reps} 次` : '未记录次数' }}
+            {{ formatDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}
           </q-item-label>
         </q-item-section>
 
@@ -75,6 +75,7 @@ import {
   DataZoomComponent
 } from 'echarts/components';
 import {ExerciseRecord} from "../types.ts";
+import {formatDate} from "../utils/format.ts";
 
 use([
   CanvasRenderer,
@@ -178,10 +179,6 @@ function handleDelete(recordId: number) {
       $q.notify({ type: 'negative', message: String(e) });
     }
   });
-}
-
-function formatDate(isoStr: string) {
-  return date.formatDate(isoStr, 'YYYY年MM月DD日 HH:mm');
 }
 
 onMounted(() => {
