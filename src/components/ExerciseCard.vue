@@ -23,6 +23,15 @@
           />
 
           <q-btn
+              icon="edit"
+              flat
+              round
+              color="grey-5"
+              size="sm"
+              @click.stop="$emit('edit', exercise.id)"
+          />
+
+          <q-btn
               icon="delete"
               flat
               round
@@ -47,6 +56,7 @@ defineProps<{
 defineEmits<{
   (e: 'click'): void;
   (e: 'delete', id: number): void;
+  (e: 'edit', id: number): void;
   (e: 'record', exercise: Exercise): void;
 }>();
 </script>

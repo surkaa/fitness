@@ -17,6 +17,7 @@
             @click="goToExerciseHistory(ex)"
             @delete="handleDeleteExercise"
             @record="openRecordDialog"
+            @edit="handleEditExercise"
         />
       </div>
     </div>
@@ -25,17 +26,18 @@
       <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
     </q-page-sticky>
   </q-page>
-  <q-dialog v-model="showAddDialog" persistent>
-    <q-card>
+
+  <q-dialog v-model="showAddDialog" persistent @hide="resetForm">
+    <q-card style="min-width: 350px">
       <q-card-section>
-        <div class="text-h6">添加新动作</div>
+        <div class="text-h6">{{ isEditing ? '编辑动作' : '添加新动作' }}</div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form @submit="handleAddExercise" class="q-gutter-md">
+        <q-form @submit="handleSave" class="q-gutter-md">
           <q-input
               filled
-              v-model="newExercise.name"
+              v-model="formState.name"
               label="动作名称"
               :rules="[val => !!val || '必填']"
               autofocus
@@ -43,32 +45,33 @@
 
           <div class="row q-col-gutter-sm">
             <div class="col-6">
-              <q-input filled type="number" v-model.number="newExercise.sets" label="目标组数"/>
+              <q-input filled type="number" v-model.number="formState.sets" label="目标组数"/>
             </div>
             <div class="col-6">
-              <q-input filled v-model="newExercise.reps" label="目标次数"/>
+              <q-input filled v-model="formState.reps" label="目标次数"/>
             </div>
           </div>
 
           <q-select
               filled
-              v-model="newExercise.unit"
+              v-model="formState.unit"
               :options="unitOptions"
               label="重量单位"
               emit-value
               map-options
           />
 
-          <q-input filled v-model="newExercise.note" label="备注 (可选)" type="textarea" rows="2"/>
+          <q-input filled v-model="formState.note" label="备注 (可选)" type="textarea" rows="2"/>
 
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn label="取消" flat color="primary" v-close-popup/>
-            <q-btn label="保存" type="submit" color="primary" :loading="submitting"/>
+            <q-btn :label="isEditing ? '保存' : '添加'" type="submit" color="primary" :loading="submitting"/>
           </div>
         </q-form>
       </q-card-section>
     </q-card>
   </q-dialog>
+
   <q-dialog v-model="showRecordDialog">
     <q-card style="min-width: 300px">
       <q-card-section>
@@ -105,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, reactive, ref} from 'vue';
+import {onMounted, reactive, ref, computed} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useQuasar} from 'quasar';
 import {invokeStrict} from '../utils/invokeStrict';
@@ -127,9 +130,11 @@ const loading = ref(false);
 const submitting = ref(false);
 const showAddDialog = ref(false);
 const showRecordDialog = ref(false);
+const editingId = ref<number | null>(null);
+const isEditing = computed(() => editingId.value !== null);
 
-// 添加表单数据
-const newExercise = reactive({
+// 表单数据
+const formState = reactive({
   name: '',
   sets: 4,
   reps: '10-15',
@@ -153,28 +158,71 @@ async function loadData() {
   }
 }
 
-// 添加动作
-async function handleAddExercise() {
-  if (!newExercise.name) return;
+// 点击编辑按钮
+function handleEditExercise(id: number) {
+  const target = exercises.value.find(e => e.id === id);
+  if (!target) return;
+
+  editingId.value = id;
+  // 回填数据
+  formState.name = target.name;
+  formState.sets = target.targetSets;
+  formState.reps = target.targetReps;
+  formState.unit = target.unit;
+  formState.note = target.note || '';
+
+  showAddDialog.value = true;
+}
+
+// 统一保存 (新增或更新)
+async function handleSave() {
+  if (!formState.name) return;
 
   try {
-    await invokeStrict('add_exercise', {
-      routineId,
-      ...newExercise
-    }, submitting);
+    if (isEditing.value) {
+      await invokeStrict('update_exercise', {
+        exerciseId: editingId.value!,
+        name: formState.name,
+        sets: formState.sets,
+        reps: formState.reps,
+        note: formState.note,
+        unit: formState.unit
+      }, submitting);
 
-    $q.notify({type: 'positive', message: '动作添加成功'});
+      // 更新本地列表
+      const index = exercises.value.findIndex(e => e.id === editingId.value);
+      if (index !== -1) {
+        exercises.value[index] = {
+          ...exercises.value[index],
+          ...formState
+        };
+      }
+      $q.notify({type: 'positive', message: '动作已更新'});
+
+    } else {
+      await invokeStrict('add_exercise', {
+        routineId,
+        ...formState
+      }, submitting);
+
+      $q.notify({type: 'positive', message: '动作添加成功'});
+      await loadData();
+    }
+
     showAddDialog.value = false;
-
-    // 重置表单
-    newExercise.name = '';
-    newExercise.note = '';
-
-    // 刷新列表
-    await loadData();
   } catch (e) {
-    $q.notify({type: 'negative', message: '添加失败: ' + e});
+    $q.notify({type: 'negative', message: (isEditing.value ? '更新' : '添加') + '失败: ' + e});
   }
+}
+
+// 重置表单 (弹窗关闭触发)
+function resetForm() {
+  editingId.value = null;
+  formState.name = '';
+  formState.sets = 4;
+  formState.reps = '10-15';
+  formState.unit = 'kg';
+  formState.note = '';
 }
 
 // 删除动作
