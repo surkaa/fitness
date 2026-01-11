@@ -232,3 +232,10 @@ impl Database {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempfile;
+
+}
