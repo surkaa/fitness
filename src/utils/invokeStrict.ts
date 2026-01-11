@@ -96,7 +96,6 @@ interface CommandMap {
  * @param loading 可选的 loading 状态引用
  * @param $q 可选的 Quasar 全局对象引用
  */
-// TODO 未来可考虑用ts简化参数
 export function invokeStrict<C extends keyof CommandMap>(
     cmd: C,
     args: CommandMap[C]["args"] = {},
