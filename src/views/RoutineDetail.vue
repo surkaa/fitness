@@ -14,7 +14,7 @@
       <div class="col-12" v-for="ex in exercises" :key="ex.id">
         <ExerciseCard
             :exercise="ex"
-            @click="goToExerciseHistory(ex.id)"
+            @click="goToExerciseHistory(ex)"
             @delete="handleDeleteExercise"
             @record="openRecordDialog"
         />
@@ -227,8 +227,12 @@ async function handleSaveRecord() {
 }
 
 // 跳转详情
-function goToExerciseHistory(id: number) {
-  router.push({name: 'ExerciseDetail', params: {id}});
+function goToExerciseHistory(e: Exercise) {
+  router.push({
+    name: 'ExerciseDetail',
+    params: {id: e.id},
+    state: {exerciseName: e.name}
+  });
 }
 
 onMounted(() => {
