@@ -26,7 +26,7 @@
     </q-page-sticky>
 
     <q-dialog v-model="showAddDialog" persistent>
-      <q-card style="min-width: 350px">
+      <q-card>
         <q-card-section>
           <div class="text-h6">添加新动作</div>
         </q-card-section>
@@ -36,7 +36,7 @@
             <q-input
                 filled
                 v-model="newExercise.name"
-                label="动作名称 (如: 杠铃卧推)"
+                label="动作名称"
                 :rules="[val => !!val || '必填']"
                 autofocus
             />
@@ -46,7 +46,7 @@
                 <q-input filled type="number" v-model.number="newExercise.sets" label="目标组数"/>
               </div>
               <div class="col-6">
-                <q-input filled v-model="newExercise.reps" label="目标次数 (如: 8-12)"/>
+                <q-input filled v-model="newExercise.reps" label="目标次数"/>
               </div>
             </div>
 
@@ -130,11 +130,11 @@ const submitting = ref(false);
 const showAddDialog = ref(false);
 const showRecordDialog = ref(false);
 
-// 添加表单数据 (提供合理的默认值)
+// 添加表单数据
 const newExercise = reactive({
   name: '',
   sets: 4,
-  reps: '8-12',
+  reps: '10-15',
   unit: 'kg',
   note: ''
 });
