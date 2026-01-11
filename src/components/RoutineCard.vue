@@ -9,7 +9,7 @@
         <div class="col">
           <div class="text-h6">{{ routine.name }}</div>
           <div class="text-subtitle2 text-grey-7">
-            {{ routine.description || '无描述' }}
+            {{ routine.description }}
           </div>
         </div>
 
