@@ -19,7 +19,7 @@
               color="primary"
               unelevated
               size="sm"
-              @click.stop="$emit('record', exercise.id)"
+              @click.stop="$emit('record', exercise)"
           />
 
           <q-btn
@@ -38,6 +38,7 @@
 
 <script setup lang="ts">
 import type {Exercise} from '../types';
+import {formatUnit} from "../utils/unitConvert.ts";
 
 defineProps<{
   exercise: Exercise
@@ -46,20 +47,6 @@ defineProps<{
 defineEmits<{
   (e: 'click'): void;
   (e: 'delete', id: number): void;
-  (e: 'record', id: number): void;
+  (e: 'record', exercise: Exercise): void;
 }>();
-
-// 单位转义
-function formatUnit(unit: string) {
-  switch (unit) {
-    case 'plate':
-      return '片';
-    case 'lb':
-      return '磅';
-    case 'kg':
-      return '公斤';
-    default:
-      return unit;
-  }
-}
 </script>
