@@ -1,8 +1,7 @@
 <template>
-  <div class="q-pa-md">
-    <div class="text-h4 q-mb-md">我的计划</div>
-
-    <div class="row q-col-gutter-md">
+  <q-page class="q-pa-md column">
+    <div class="text-h4 q-mb-md">训练计划</div>
+    <div class="row q-col-gutter-md" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
         <RoutineCard
             :routine="r"
@@ -12,10 +11,18 @@
       </div>
     </div>
 
+    <div v-else-if="!loading" class="col flex flex-center column text-grey">
+      <q-icon name="fitness_center" size="64px"/>
+      <div class="q-mt-md text-h6" style="opacity: 0.7">
+        还没有训练计划
+      </div>
+      <div class="text-caption">点击右下角添加</div>
+    </div>
+
     <q-page-sticky position="bottom-right" :offset="[18, 18]">
       <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
     </q-page-sticky>
-  </div>
+  </q-page>
 </template>
 
 <script setup lang="ts">
