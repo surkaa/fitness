@@ -21,6 +21,20 @@ async fn delete_routine(state: State<'_, db::Database>, routine_id: i64) -> Resu
     state.delete_routine(routine_id).await.map_err(|e| e.to_string())
 }
 
+/// 更新轮次
+#[tauri::command]
+async fn update_routine(
+    state: State<'_, db::Database>,
+    routine_id: i64,
+    name: String,
+    desc: String,
+) -> Result<(), String> {
+    state
+        .update_routine(routine_id, &name, &desc)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// 获取轮次下的动作
 #[tauri::command]
 async fn get_exercises(state: State<'_, db::Database>, routine_id: i64) -> Result<Vec<db::Exercise>, String> {
@@ -47,6 +61,23 @@ async fn add_exercise(
 #[tauri::command]
 async fn delete_exercise(state: State<'_, db::Database>, exercise_id: i64) -> Result<(), String> {
     state.delete_exercise(exercise_id).await.map_err(|e| e.to_string())
+}
+
+/// 更新动作
+#[tauri::command]
+async fn update_exercise(
+    state: State<'_, db::Database>,
+    exercise_id: i64,
+    name: String,
+    sets: i64,
+    reps: String,
+    note: String,
+    unit: String,
+) -> Result<(), String> {
+    state
+        .update_exercise(exercise_id, &name, sets, &reps, &note, &unit)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 记录一次最大重量
@@ -81,7 +112,6 @@ async fn page_records(
         .map_err(|e| e.to_string())
 }
 
-// TODO 添加更新数据的命令
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -110,9 +140,11 @@ pub fn run() {
             get_routines,
             create_routine,
             delete_routine,
+            update_routine,
             get_exercises,
             add_exercise,
             delete_exercise,
+            update_exercise,
             add_record,
             delete_record,
             page_records

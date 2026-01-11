@@ -25,6 +25,11 @@ interface CommandMap {
         args: { routineId: number };
         result: void;
     };
+    // 更新轮次
+    update_routine: {
+        args: { routineId: number; name: string; desc: string };
+        result: void;
+    };
     // 获取轮次下的动作
     get_exercises: {
         args: { routineId: number };
@@ -45,6 +50,18 @@ interface CommandMap {
     // 删除动作
     delete_exercise: {
         args: { exerciseId: number };
+        result: void;
+    };
+    // 更新动作
+    update_exercise: {
+        args: {
+            exerciseId: number;
+            name: string;
+            sets: number;
+            reps: string;
+            note: string;
+            unit: string;
+        };
         result: void;
     };
     // 记录一次最大重量

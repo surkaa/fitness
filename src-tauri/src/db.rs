@@ -145,6 +145,17 @@ impl Database {
         Ok(())
     }
 
+    /// 更新轮次
+    pub async fn update_routine(&self, routine_id: i64, name: &str, desc: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE routines SET name = ?, description = ? WHERE id = ?")
+            .bind(name)
+            .bind(desc)
+            .bind(routine_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     /// 获取某个轮次下的所有动作
     pub async fn get_exercises(&self, routine_id: i64) -> Result<Vec<Exercise>, sqlx::Error> {
         sqlx::query_as::<_, Exercise>("SELECT * FROM exercises WHERE routine_id = ? ORDER BY id")
@@ -185,6 +196,30 @@ impl Database {
             .bind(exercise_id)
             .execute(&self.pool)
             .await?;
+        Ok(())
+    }
+
+    /// 更新动作
+    pub async fn update_exercise(
+        &self,
+        exercise_id: i64,
+        name: &str,
+        sets: i64,
+        reps: &str,
+        note: &str,
+        unit: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE exercises SET name = ?, target_sets = ?, target_reps = ?, note = ?, unit = ? WHERE id = ?",
+        )
+        .bind(name)
+        .bind(sets)
+        .bind(reps)
+        .bind(note)
+        .bind(unit)
+        .bind(exercise_id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
