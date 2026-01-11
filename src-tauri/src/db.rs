@@ -223,7 +223,7 @@ impl Database {
     ) -> Result<Vec<Record>, sqlx::Error> {
         let offset = (page - 1) * page_size;
         sqlx::query_as::<_, Record>(
-            "SELECT * FROM records WHERE exercise_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM records WHERE exercise_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(exercise_id)
         .bind(page_size)
