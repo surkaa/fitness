@@ -24,86 +24,84 @@
     <q-page-sticky position="bottom-right" :offset="[18, 18]">
       <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
     </q-page-sticky>
-
-    <q-dialog v-model="showAddDialog" persistent>
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">添加新动作</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-form @submit="handleAddExercise" class="q-gutter-md">
-            <q-input
-                filled
-                v-model="newExercise.name"
-                label="动作名称"
-                :rules="[val => !!val || '必填']"
-                autofocus
-            />
-
-            <div class="row q-col-gutter-sm">
-              <div class="col-6">
-                <q-input filled type="number" v-model.number="newExercise.sets" label="目标组数"/>
-              </div>
-              <div class="col-6">
-                <q-input filled v-model="newExercise.reps" label="目标次数"/>
-              </div>
-            </div>
-
-            <q-select
-                filled
-                v-model="newExercise.unit"
-                :options="unitOptions"
-                label="重量单位"
-                emit-value
-                map-options
-            />
-
-            <q-input filled v-model="newExercise.note" label="备注 (可选)" type="textarea" rows="2"/>
-
-            <div class="q-mt-md">
-              <q-btn label="取消" flat color="primary" v-close-popup/>
-              <q-btn label="保存" type="submit" color="primary" :loading="submitting"/>
-            </div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="showRecordDialog">
-      <q-card style="min-width: 300px">
-        <q-card-section>
-          <div class="text-h6">{{ recordingExercise?.name }}</div>
-          <div class="text-caption text-grey">记录今日最大重量</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-input
-              filled
-              type="number"
-              v-model.number="recordForm.weight"
-              label="重量"
-              :suffix="formatUnit(recordingExercise?.unit || '')"
-              autofocus
-              @keyup.enter="handleSaveRecord"
-          />
-          <q-input
-              class="q-mt-sm"
-              filled
-              type="number"
-              v-model.number="recordForm.reps"
-              label="实际完成次数 (可选)"
-              placeholder="默认留空"
-          />
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="取消" color="primary" v-close-popup/>
-          <q-btn flat label="确认记录" color="primary" @click="handleSaveRecord" :loading="submitting"/>
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
+  <q-dialog v-model="showAddDialog" persistent>
+    <q-card>
+      <q-card-section>
+        <div class="text-h6">添加新动作</div>
+      </q-card-section>
+
+      <q-card-section class="q-pt-none">
+        <q-form @submit="handleAddExercise" class="q-gutter-md">
+          <q-input
+              filled
+              v-model="newExercise.name"
+              label="动作名称"
+              :rules="[val => !!val || '必填']"
+              autofocus
+          />
+
+          <div class="row q-col-gutter-sm">
+            <div class="col-6">
+              <q-input filled type="number" v-model.number="newExercise.sets" label="目标组数"/>
+            </div>
+            <div class="col-6">
+              <q-input filled v-model="newExercise.reps" label="目标次数"/>
+            </div>
+          </div>
+
+          <q-select
+              filled
+              v-model="newExercise.unit"
+              :options="unitOptions"
+              label="重量单位"
+              emit-value
+              map-options
+          />
+
+          <q-input filled v-model="newExercise.note" label="备注 (可选)" type="textarea" rows="2"/>
+
+          <div class="row justify-end q-gutter-sm q-mt-md">
+            <q-btn label="取消" flat color="primary" v-close-popup/>
+            <q-btn label="保存" type="submit" color="primary" :loading="submitting"/>
+          </div>
+        </q-form>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
+  <q-dialog v-model="showRecordDialog">
+    <q-card style="min-width: 300px">
+      <q-card-section>
+        <div class="text-h6">{{ recordingExercise?.name }}</div>
+        <div class="text-caption text-grey">记录今日最大重量</div>
+      </q-card-section>
+
+      <q-card-section class="q-pt-none">
+        <q-input
+            filled
+            type="number"
+            v-model.number="recordForm.weight"
+            label="重量"
+            :suffix="formatUnit(recordingExercise?.unit || '')"
+            autofocus
+            @keyup.enter="handleSaveRecord"
+        />
+        <q-input
+            class="q-mt-sm"
+            filled
+            type="number"
+            v-model.number="recordForm.reps"
+            label="实际完成次数 (可选)"
+            placeholder="默认留空"
+        />
+      </q-card-section>
+
+      <q-card-actions align="right">
+        <q-btn flat label="取消" color="primary" v-close-popup/>
+        <q-btn flat label="确认记录" color="primary" @click="handleSaveRecord" :loading="submitting"/>
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup lang="ts">
@@ -231,7 +229,10 @@ function goToExerciseHistory(e: Exercise) {
   router.push({
     name: 'ExerciseDetail',
     params: {id: e.id},
-    state: {exerciseName: e.name}
+    state: {
+      exerciseName: e.name,
+      exerciseUnit: e.unit
+    }
   });
 }
 
