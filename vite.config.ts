@@ -1,0 +1,25 @@
+import {defineConfig, loadEnv} from "vite";
+import vue from "@vitejs/plugin-vue";
+
+export default defineConfig(({mode}) => {
+    const env = loadEnv(mode, process.cwd());
+    const host = env.VITE_TAURI_DEV_HOST;
+    const hmr = host ? {
+        protocol: "ws",
+        host,
+        port: 11421,
+    } : undefined;
+    return {
+        plugins: [vue()],
+        clearScreen: false,
+        server: {
+            port: 11420,
+            strictPort: true,
+            host: host || false,
+            hmr,
+            watch: {
+                ignored: ["**/src-tauri/**"],
+            },
+        },
+    }
+});
