@@ -66,7 +66,7 @@ interface CommandMap {
         args: {
             exerciseId: number;
             page: number;
-            page_size: number;
+            pageSize: number;
         };
         result: ExerciseRecord[];
     };
