@@ -123,7 +123,7 @@ const $q = useQuasar();
 const routineId = Number(route.params.id);
 const routineName = history.state.name;
 
-// 状态
+// 状态 TODO 以后还可以统计exercises训练了多少次
 const exercises = ref<Exercise[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
