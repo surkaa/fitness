@@ -1,15 +1,15 @@
 <template>
-  <q-dialog v-model="showAddDialog" persistent>
+  <q-dialog v-model="showAddDialog" persistent @hide="resetForm">
     <q-card style="min-width: 350px">
       <q-card-section>
-        <div class="text-h6">新建训练计划</div>
+        <div class="text-h6">{{ isEditing ? '编辑训练计划' : '新建训练计划' }}</div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form @submit="handleCreateRoutine" class="q-gutter-md">
+        <q-form @submit="handleSave" class="q-gutter-md">
           <q-input
               filled
-              v-model="newRoutine.name"
+              v-model="formState.name"
               label="计划名称"
               :rules="[val => !!val || '名称不能为空']"
               autofocus
@@ -17,7 +17,7 @@
 
           <q-input
               filled
-              v-model="newRoutine.description"
+              v-model="formState.description"
               label="描述"
               type="textarea"
               rows="3"
@@ -25,12 +25,18 @@
 
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn label="取消" flat color="primary" v-close-popup/>
-            <q-btn label="创建" type="submit" color="primary" :loading="submitting"/>
+            <q-btn
+                :label="isEditing ? '保存' : '创建'"
+                type="submit"
+                color="primary"
+                :loading="submitting"
+            />
           </div>
         </q-form>
       </q-card-section>
     </q-card>
   </q-dialog>
+
   <q-page class="q-pa-md column">
     <div class="text-h4 q-mb-md">训练计划</div>
     <div class="row q-col-gutter-md" v-if="routines.length">
@@ -39,6 +45,7 @@
             :routine="r"
             @click="goToRoutine(r)"
             @delete="handleDelete(r.id)"
+            @edit="handleEdit(r.id)"
         />
       </div>
     </div>
@@ -58,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, reactive, ref} from 'vue';
+import {onMounted, reactive, ref, computed} from 'vue';
 import RoutineCard from '../components/RoutineCard.vue';
 import type {Routine} from '../types';
 import {useRouter} from "vue-router";
@@ -71,41 +78,80 @@ const $q = useQuasar();
 const routines = ref<Routine[]>([]);
 const loading = ref(false);
 const showAddDialog = ref(false);
-const newRoutine = reactive({
+const submitting = ref(false);
+
+// 记录当前正在编辑的 ID，如果为 null 则表示是新建模式
+const editingId = ref<number | null>(null);
+const isEditing = computed(() => editingId.value !== null);
+
+const formState = reactive({
   name: '',
   description: ''
 });
-const submitting = ref(false);
 
-// 创建逻辑
-async function handleCreateRoutine() {
-  if (!newRoutine.name) return;
+// 打开编辑弹窗
+function handleEdit(id: number) {
+  const target = routines.value.find(r => r.id === id);
+  if (!target) return;
+
+  // 回填数据
+  editingId.value = id;
+  formState.name = target.name;
+  formState.description = target.description || '';
+
+  showAddDialog.value = true;
+}
+
+// 统一保存入口 (创建/更新)
+async function handleSave() {
+  if (!formState.name) return;
 
   try {
-    // 调用 Rust 接口
-    // 注意：Rust 后端接收参数名为 name 和 desc
-    const newId = await invokeStrict('create_routine', {
-      name: newRoutine.name,
-      desc: newRoutine.description || ''
-    }, submitting);
+    if (isEditing.value) {
+      await invokeStrict('update_routine', {
+        routineId: editingId.value!,
+        name: formState.name,
+        desc: formState.description || ''
+      }, submitting);
 
-    $q.notify({ type: 'positive', message: '计划创建成功' });
+      // 更新本地列表
+      const index = routines.value.findIndex(r => r.id === editingId.value);
+      if (index !== -1) {
+        routines.value[index] = {
+          ...routines.value[index],
+          name: formState.name,
+          description: formState.description || null
+        };
+      }
+
+      $q.notify({ type: 'positive', message: '计划已更新' });
+
+    } else {
+      const newId = await invokeStrict('create_routine', {
+        name: formState.name,
+        desc: formState.description || ''
+      }, submitting);
+
+      routines.value.push({
+        id: newId,
+        name: formState.name,
+        description: formState.description || null
+      });
+
+      $q.notify({ type: 'positive', message: '计划创建成功' });
+    }
+
     showAddDialog.value = false;
-
-    // 手动更新列表，避免重新请求后端
-    routines.value.push({
-      id: newId,
-      name: newRoutine.name,
-      description: newRoutine.description || null
-    });
-
-    // 重置表单
-    newRoutine.name = '';
-    newRoutine.description = '';
-
   } catch (e) {
-    $q.notify({ type: 'negative', message: '创建失败: ' + e });
+    $q.notify({ type: 'negative', message: (isEditing.value ? '更新' : '创建') + '失败: ' + e });
   }
+}
+
+// 重置表单
+function resetForm() {
+  editingId.value = null;
+  formState.name = '';
+  formState.description = '';
 }
 
 function goToRoutine(r: Routine) {

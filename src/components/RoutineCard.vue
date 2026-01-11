@@ -15,11 +15,18 @@
 
         <div class="col-auto">
           <q-btn
+              icon="edit"
+              flat
+              round
+              color="grey-6"
+              @click.stop="$emit('edit')"
+          />
+          <q-btn
               icon="delete"
               flat
               round
               color="grey-6"
-              @click.stop="$emit('delete', routine.id)"
+              @click.stop="$emit('delete')"
           />
         </div>
       </div>
@@ -36,6 +43,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'click'): void;
-  (e: 'delete', id: number): void;
+  (e: 'delete'): void;
+  (e: 'edit'): void;
 }>();
 </script>
