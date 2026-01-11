@@ -59,7 +59,7 @@ impl Database {
         }
 
         let db_path = format!(
-            "sqlite:{}/fitness_lite.db?mode=rwc&foreign_keys=on",
+            "sqlite:{}/fitness_lite.db?mode=rwc",
             app_dir
         );
         let pool = SqlitePoolOptions::new()
