@@ -17,12 +17,12 @@ interface CommandMap {
     // 创建轮次
     create_routine: {
         args: { name: string; desc: string };
-        result: number; // 返回 id
+        result: number;
     };
     // 删除轮次
     delete_routine: {
         args: { routineId: number };
-        result: null; // Result<(), String> 成功通常返回 null
+        result: void;
     };
     // 获取轮次下的动作
     get_exercises: {
@@ -39,12 +39,12 @@ interface CommandMap {
             note: string;
             unit: string;
         };
-        result: number; // 返回 id
+        result: number;
     };
     // 删除动作
     delete_exercise: {
         args: { exerciseId: number };
-        result: null;
+        result: void;
     };
     // 记录一次最大重量
     add_record: {
@@ -53,12 +53,12 @@ interface CommandMap {
             weight: number;
             reps: number | null; // Option<i64>
         };
-        result: number; // 返回 id
+        result: number;
     };
     // 删除记录
     delete_record: {
         args: { recordId: number };
-        result: null;
+        result: void;
     };
     // 分页获取记录
     page_records: {
