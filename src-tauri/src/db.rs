@@ -5,6 +5,7 @@ use std::path::Path;
 
 // 轮次 (比如: "一轮次: 胸肩")
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Routine {
     pub id: i64,
     /// 轮次名称
@@ -15,6 +16,7 @@ pub struct Routine {
 
 // 动作 (比如: "杠铃卧推", 包含单位配置)
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Exercise {
     pub id: i64,
     pub routine_id: i64,
@@ -32,6 +34,7 @@ pub struct Exercise {
 
 // 记录 (具体每一次的重量)
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Record {
     pub id: i64,
     pub exercise_id: i64,
