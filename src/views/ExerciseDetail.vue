@@ -7,7 +7,7 @@
 
     <q-card flat bordered class="q-mb-md bg-grey-1">
       <q-card-section>
-        <div class="text-subtitle2 text-grey-7">容量走势 (Weight)</div>
+        <div class="text-subtitle2 text-grey-7">走势</div>
       </q-card-section>
 
       <q-card-section class="q-pa-none" style="height: 250px;">
