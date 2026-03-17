@@ -112,6 +112,19 @@ async fn page_records(
         .map_err(|e| e.to_string())
 }
 
+/// 更新记录
+#[tauri::command]
+async fn update_record(
+    state: State<'_, db::Database>,
+    record_id: i64,
+    weight: f64,
+    reps: Option<i64>,
+) -> Result<(), String> {
+    state.update_record(record_id, weight, reps)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -147,7 +160,8 @@ pub fn run() {
             update_exercise,
             add_record,
             delete_record,
-            page_records
+            page_records,
+            update_record
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

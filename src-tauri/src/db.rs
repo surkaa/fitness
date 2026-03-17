@@ -266,6 +266,17 @@ impl Database {
         .fetch_all(&self.pool)
         .await
     }
+
+    /// 更新记录
+    pub async fn update_record(&self, record_id: i64, weight: f64, reps: Option<i64>) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE records SET weight = ?, reps = ? WHERE id = ?")
+            .bind(weight)
+            .bind(reps)
+            .bind(record_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

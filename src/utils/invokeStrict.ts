@@ -87,6 +87,11 @@ interface CommandMap {
         };
         result: ExerciseRecord[];
     };
+    // 更新记录
+    update_record: {
+        args: { recordId: number; weight: number; reps: number | null };
+        result: void;
+    };
 }
 
 /**

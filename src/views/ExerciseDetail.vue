@@ -11,7 +11,7 @@
       </q-card-section>
 
       <q-card-section class="q-pa-none" style="height: 250px;">
-        <v-chart v-if="records.length > 1" class="chart" :option="chartOption" autoresize />
+        <v-chart v-if="dailyAveraged.length > 1" class="chart" :option="chartOption" autoresize/>
         <div v-else class="full-height flex flex-center text-grey-5">
           <div class="text-center">
             <q-icon name="show_chart" size="40px"/>
@@ -44,6 +44,14 @@
 
         <q-item-section side>
           <q-btn
+              icon="edit"
+              flat
+              round
+              color="grey-5"
+              size="sm"
+              @click="handleEditRecord(record)"
+          />
+          <q-btn
               icon="delete"
               flat
               round
@@ -55,27 +63,52 @@
       </q-item>
     </q-list>
 
+    <!-- 编辑记录弹窗 -->
+    <q-dialog v-model="showEditDialog" persistent>
+      <q-card style="min-width: 300px">
+        <q-card-section>
+          <div class="text-h6">编辑记录</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+              filled
+              type="number"
+              v-model.number="editForm.weight"
+              label="重量"
+              :suffix="formatUnit(unit)"
+              autofocus
+          />
+          <q-input
+              class="q-mt-sm"
+              filled
+              type="number"
+              v-model.number="editForm.reps"
+              label="实际完成次数 (可选)"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="取消" color="primary" v-close-popup/>
+          <q-btn flat label="保存" color="primary" @click="handleUpdateRecord" :loading="submitting"/>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { date, useQuasar } from 'quasar';
-import { invokeStrict } from '../utils/invokeStrict';
+import {computed, onMounted, reactive, ref} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {date, useQuasar} from 'quasar';
+import {invokeStrict} from '../utils/invokeStrict';
 
 import VChart from 'vue-echarts';
-import { use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { LineChart } from 'echarts/charts';
-import {
-  GridComponent,
-  TooltipComponent,
-  TitleComponent,
-  DataZoomComponent
-} from 'echarts/components';
+import {use} from 'echarts/core';
+import {CanvasRenderer} from 'echarts/renderers';
+import {LineChart} from 'echarts/charts';
+import {DataZoomComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
 import {ExerciseRecord} from "../types.ts";
 import {formatDate} from "../utils/format.ts";
+import {formatUnit} from "../utils/unitConvert.ts";
 
 use([
   CanvasRenderer,
@@ -97,14 +130,33 @@ const unit = (history.state.exerciseUnit as string) || 'kg';
 
 const records = ref<ExerciseRecord[]>([]);
 const loading = ref(false);
+const submitting = ref(false);
 
+const showEditDialog = ref(false);
+const editingRecord = ref<ExerciseRecord | null>(null);
+const editForm = reactive({
+  weight: null as number | null,
+  reps: null as number | null
+});
+
+const dailyAveraged = computed(() => {
+  const map = new Map<string, { total: number; count: number }>();
+  for (const r of records.value) {
+    const day = date.formatDate(r.createdAt, 'YYYY-MM-DD');
+    const entry = map.get(day) || {total: 0, count: 0};
+    entry.total += r.weight;
+    entry.count += 1;
+    map.set(day, entry);
+  }
+  // 转为数组并按日期排序
+  return Array.from(map.entries())
+      .map(([day, {total, count}]) => ({day, avgWeight: total / count}))
+      .sort((a, b) => a.day.localeCompare(b.day));
+});
 const chartOption = computed(() => {
-  const sortedForChart = [...records.value].sort((a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
-
-  const dates = sortedForChart.map(r => date.formatDate(r.createdAt, 'MM/DD'));
-  const weights = sortedForChart.map(r => r.weight);
+  const data = dailyAveraged.value;
+  const dates = data.map(d => d.day.slice(5)); // 只取月-日
+  const weights = data.map(d => d.avgWeight);
 
   return {
     tooltip: {
@@ -121,12 +173,12 @@ const chartOption = computed(() => {
       type: 'category',
       data: dates,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: '#999' } }
+      axisLine: {lineStyle: {color: '#999'}}
     },
     yAxis: {
       type: 'value',
       scale: true,
-      splitLine: { lineStyle: { type: 'dashed' } }
+      splitLine: {lineStyle: {type: 'dashed'}}
     },
     series: [
       {
@@ -135,14 +187,14 @@ const chartOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 8,
-        itemStyle: { color: '#1976D2' },
+        itemStyle: {color: '#1976D2'},
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(25, 118, 210, 0.3)' },
-              { offset: 1, color: 'rgba(25, 118, 210, 0)' }
+              {offset: 0, color: 'rgba(25, 118, 210, 0.3)'},
+              {offset: 1, color: 'rgba(25, 118, 210, 0)'}
             ]
           }
         }
@@ -159,7 +211,7 @@ async function loadHistory() {
       pageSize: 1000
     }, loading);
   } catch (e) {
-    $q.notify({ type: 'negative', message: '获取历史记录失败: ' + e });
+    $q.notify({type: 'negative', message: '获取历史记录失败: ' + e});
   }
 }
 
@@ -171,14 +223,50 @@ function handleDelete(recordId: number) {
     persistent: true
   }).onOk(async () => {
     try {
-      await invokeStrict('delete_record', { recordId });
+      await invokeStrict('delete_record', {recordId});
       // 从本地列表中移除
       records.value = records.value.filter(r => r.id !== recordId);
-      $q.notify({ type: 'positive', message: '已删除', timeout: 1000 });
+      $q.notify({type: 'positive', message: '已删除', timeout: 1000});
     } catch (e) {
-      $q.notify({ type: 'negative', message: String(e) });
+      $q.notify({type: 'negative', message: String(e)});
     }
   });
+}
+
+function handleEditRecord(record: ExerciseRecord) {
+  editingRecord.value = record;
+  editForm.weight = record.weight;
+  editForm.reps = record.reps;
+  showEditDialog.value = true;
+}
+
+async function handleUpdateRecord() {
+  if (!editingRecord.value || !editForm.weight) {
+    $q.notify({type: 'warning', message: '请输入重量'});
+    return;
+  }
+  try {
+    await invokeStrict('update_record', {
+      recordId: editingRecord.value.id,
+      weight: Number(editForm.weight),
+      reps: editForm.reps ? Number(editForm.reps) : null
+    }, submitting);
+
+    // 本地更新记录
+    const index = records.value.findIndex(r => r.id === editingRecord.value!.id);
+    if (index !== -1) {
+      records.value[index] = {
+        ...records.value[index],
+        weight: editForm.weight,
+        reps: editForm.reps
+      };
+    }
+
+    $q.notify({type: 'positive', message: '记录已更新'});
+    showEditDialog.value = false;
+  } catch (e) {
+    $q.notify({type: 'negative', message: '更新失败: ' + e});
+  }
 }
 
 onMounted(() => {
