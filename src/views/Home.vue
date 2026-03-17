@@ -46,13 +46,13 @@
             <q-list>
               <q-item clickable v-close-popup @click="handleExport">
                 <q-item-section avatar>
-                  <q-icon name="download" />
+                  <q-icon name="download"/>
                 </q-item-section>
                 <q-item-section>数据导出</q-item-section>
               </q-item>
-              <q-item clickable v-close-popup @click="handleImport">
+              <q-item clickable v-close-popup @click="handleImportFromDownloads">
                 <q-item-section avatar>
-                  <q-icon name="upload" />
+                  <q-icon name="upload"/>
                 </q-item-section>
                 <q-item-section>数据导入</q-item-section>
               </q-item>
@@ -95,7 +95,6 @@ import {useRouter} from "vue-router";
 import {useQuasar} from "quasar";
 import {invokeStrict} from "../utils/invokeStrict.ts";
 import {invoke} from "@tauri-apps/api/core";
-import {open, save} from "@tauri-apps/plugin-dialog";
 import {relaunch} from "@tauri-apps/plugin-process";
 
 const router = useRouter();
@@ -212,54 +211,62 @@ function handleDelete(id: number) {
 
 async function handleExport() {
   try {
-    const filePath = await save({
-      title: '保存数据库备份',
-      defaultPath: `fitness_backup_${new Date().toISOString().slice(0, 10)}.db`,
-      filters: [{name: 'Database', extensions: ['db']}]
+    const destPath = await invoke<string>('export_database_to_downloads');
+    $q.notify({
+      type: 'positive',
+      message: `导出成功，文件已保存到：${destPath}`,
+      timeout: 5000
     });
-    if (!filePath) return; // 用户取消
-
-    await invoke('export_database', {destination: filePath});
-    $q.notify({type: 'positive', message: '导出成功'});
   } catch (e) {
     $q.notify({type: 'negative', message: '导出失败: ' + e});
   }
 }
 
-async function handleImport() {
+// 从 Downloads 恢复的对话框（列表选择）
+async function handleImportFromDownloads() {
   try {
-    const selected = await open({
-      title: '选择备份文件',
-      filters: [{name: 'Database', extensions: ['db']}],
-      multiple: false
-    });
-    if (!selected) return;
+    const backups = await invoke<string[]>('list_backups_in_downloads');
+    if (backups.length === 0) {
+      $q.notify('下载目录中没有备份文件');
+      return;
+    }
 
-    // 二次确认（因为会覆盖数据）
     $q.dialog({
-      title: '确认导入',
-      message: '导入将覆盖当前所有数据，且需要重启应用才能生效。确定继续？',
+      title: '选择备份文件',
+      message: '请选择要恢复的备份文件',
+      options: {
+        type: 'radio',
+        model: '',
+        items: backups.map(name => ({label: name, value: name}))
+      },
       cancel: true,
       persistent: true
-    }).onOk(async () => {
-      await invoke('import_database', {source: selected});
-      $q.notify({
-        type: 'positive',
-        message: '导入成功，点击重启立即生效',
-        timeout: 0,
-        actions: [
-          {
-            label: '立即重启',
-            color: 'white',
-            handler: async () => {
-              await relaunch();
-            }
-          }
-        ]
+    }).onOk(async (filename) => {
+      $q.dialog({
+        title: '确认恢复',
+        message: '恢复将覆盖当前所有数据，且需要重启应用。确定继续？',
+        cancel: true,
+        persistent: true
+      }).onOk(async () => {
+        try {
+          await invoke('import_from_downloads', {filename});
+          $q.notify({
+            type: 'positive',
+            message: '恢复成功，点击重启立即生效',
+            timeout: 0,
+            actions: [{
+              label: '立即重启',
+              color: 'white',
+              handler: async () => await relaunch()
+            }]
+          });
+        } catch (e) {
+          $q.notify({type: 'negative', message: '恢复失败: ' + e});
+        }
       });
     });
   } catch (e) {
-    $q.notify({type: 'negative', message: '导入失败: ' + e});
+    $q.notify({type: 'negative', message: '获取备份列表失败: ' + e});
   }
 }
 
