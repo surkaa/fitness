@@ -173,10 +173,7 @@ async fn export_database(
 }
 
 #[tauri::command]
-async fn import_database(
-    state: State<'_, db::Database>,
-    source: String,
-) -> Result<(), String> {
+async fn import_database(state: State<'_, db::Database>, source: String) -> Result<(), String> {
     let destination = state.get_db_path();
 
     // 关闭数据库连接，释放文件锁
@@ -192,20 +189,22 @@ async fn import_database(
     Ok(())
 }
 
-#[tauri::command]
-async fn restart_app(app_handle: AppHandle) {
-    app_handle.restart();
-}
-
 /// 获取某个动作的常用次数列表
 #[tauri::command]
-async fn get_common_reps(state: State<'_, db::Database>, exercise_id: i64) -> Result<Vec<i64>, String> {
-    state.get_common_reps(exercise_id).await.map_err(|e| e.to_string())
+async fn get_common_reps(
+    state: State<'_, db::Database>,
+    exercise_id: i64,
+) -> Result<Vec<i64>, String> {
+    state
+        .get_common_reps(exercise_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -244,7 +243,6 @@ pub fn run() {
             get_exercise_stats,
             export_database,
             import_database,
-            restart_app,
             get_common_reps
         ])
         .run(tauri::generate_context!())

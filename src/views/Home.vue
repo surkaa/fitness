@@ -96,6 +96,7 @@ import {useQuasar} from "quasar";
 import {invokeStrict} from "../utils/invokeStrict.ts";
 import {invoke} from "@tauri-apps/api/core";
 import {open, save} from "@tauri-apps/plugin-dialog";
+import {relaunch} from "@tauri-apps/plugin-process";
 
 const router = useRouter();
 const $q = useQuasar();
@@ -251,7 +252,7 @@ async function handleImport() {
             label: '立即重启',
             color: 'white',
             handler: async () => {
-              await invoke('restart_app');
+              await relaunch();
             }
           }
         ]

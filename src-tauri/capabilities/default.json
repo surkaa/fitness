@@ -10,6 +10,7 @@
     "opener:default",
     "log:default",
     "dialog:allow-save",
-    "dialog:default"
+    "dialog:default",
+    "process:default"
   ]
 }
