@@ -197,6 +197,12 @@ async fn restart_app(app_handle: AppHandle) {
     app_handle.restart();
 }
 
+/// 获取某个动作的常用次数列表
+#[tauri::command]
+async fn get_common_reps(state: State<'_, db::Database>, exercise_id: i64) -> Result<Vec<i64>, String> {
+    state.get_common_reps(exercise_id).await.map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -238,7 +244,8 @@ pub fn run() {
             get_exercise_stats,
             export_database,
             import_database,
-            restart_app
+            restart_app,
+            get_common_reps
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -332,6 +332,31 @@ impl Database {
             last_date,
         })
     }
+
+    /// 获取某个动作的常用 reps 值（最近 N 条记录中非空的、去重后的 reps）
+    pub async fn get_common_reps(&self, exercise_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+        // 查询最近 50 条记录中非空的 reps，按出现频率降序，取前 5 个不同的值
+        // 也可以简单地取所有不重复的 reps（限制数量）
+        let reps = sqlx::query_scalar::<_, Option<i64>>(
+            "SELECT reps FROM records
+             WHERE exercise_id = ? AND reps IS NOT NULL
+             ORDER BY created_at DESC LIMIT 50",
+        )
+        .bind(exercise_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // 提取非空值，去重，限制最多 6 个，并按数值排序（可选）
+        let mut unique: Vec<i64> = reps
+            .into_iter()
+            .filter_map(|r| r) // 过滤掉 None
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        unique.sort(); // 按数值升序，更整齐
+        unique.truncate(6); // 最多显示 6 个候选
+        Ok(unique)
+    }
 }
 
 #[cfg(test)]

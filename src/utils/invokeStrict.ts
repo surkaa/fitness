@@ -95,6 +95,11 @@ interface CommandMap {
         args: { exerciseId: number };
         result: ExerciseStats;
     };
+    // 获取常用次数
+    get_common_reps: {
+        args: { exerciseId: number };
+        result: number[];  // 后端返回 Vec<i64> 对应 number[]
+    };
 }
 
 /**
