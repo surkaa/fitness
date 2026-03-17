@@ -77,7 +77,9 @@
     <q-card style="min-width: 300px">
       <q-card-section>
         <div class="text-h6">{{ recordingExercise?.name }}</div>
-        <div class="text-caption text-grey">记录今日最大重量</div>
+        <div class="text-caption text-grey">
+          {{ recordingExercise?.note || '记录数据（允许一天记录多次，在动作详情页的图标会按天取平均）' }}
+        </div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
@@ -88,7 +90,6 @@
             label="重量"
             :suffix="formatUnit(recordingExercise?.unit || '')"
             autofocus
-            @keyup.enter="handleSaveRecord"
         />
         <q-input
             class="q-mt-sm"
@@ -97,6 +98,7 @@
             v-model.number="recordForm.reps"
             label="实际完成次数 (可选)"
             placeholder="默认留空"
+            @keyup.enter="handleSaveRecord"
         />
       </q-card-section>
 
