@@ -11,6 +11,7 @@
     "log:default",
     "dialog:allow-save",
     "dialog:default",
-    "process:default"
+    "process:default",
+    "fs:default"
   ]
 }
