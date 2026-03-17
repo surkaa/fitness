@@ -10,7 +10,7 @@
     "windows:dev": "tauri dev",
     "windows:build": "tauri build",
     "android:dev": "tauri android dev",
-    "android:build": "tauri android build --target aarch64 --apk true --aab true"
+    "android:build": "tauri android build --target aarch64 --apk --aab"
   },
   "dependencies": {
     "@quasar/extras": "^1.17.0",
