@@ -1,4 +1,3 @@
-use chrono::Local;
 use std::fs;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_log::log::info;
