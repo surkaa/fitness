@@ -79,11 +79,9 @@ interface CommandMap {
         result: void;
     };
     // 分页获取记录
-    page_records: {
+    get_all_records: {
         args: {
             exerciseId: number;
-            page: number;
-            pageSize: number;
         };
         result: ExerciseRecord[];
     };

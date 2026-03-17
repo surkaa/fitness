@@ -212,11 +212,7 @@ const chartOption = computed(() => {
 
 async function loadHistory() {
   try {
-    records.value = await invokeStrict('page_records', {
-      exerciseId,
-      page: 1,
-      pageSize: 1000
-    }, loading);
+    records.value = await invokeStrict('get_all_records', {exerciseId}, loading);
   } catch (e) {
     $q.notify({type: 'negative', message: '获取历史记录失败: ' + e});
   }

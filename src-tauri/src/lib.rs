@@ -126,14 +126,12 @@ async fn delete_record(state: State<'_, db::Database>, record_id: i64) -> Result
 
 /// 分页获取记录
 #[tauri::command]
-async fn page_records(
+async fn get_all_records(
     state: State<'_, db::Database>,
     exercise_id: i64,
-    page: i64,
-    page_size: i64,
 ) -> Result<Vec<db::Record>, String> {
     state
-        .page_records(exercise_id, page, page_size)
+        .get_all_records(exercise_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -176,7 +174,6 @@ async fn export_database(
 
 #[tauri::command]
 async fn import_database(
-    app_handle: AppHandle,
     state: State<'_, db::Database>,
     source: String,
 ) -> Result<(), String> {
@@ -236,7 +233,7 @@ pub fn run() {
             update_exercise,
             add_record,
             delete_record,
-            page_records,
+            get_all_records,
             update_record,
             get_exercise_stats,
             export_database,

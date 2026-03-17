@@ -274,19 +274,11 @@ impl Database {
     }
 
     /// 分页获取某个动作的记录
-    pub async fn page_records(
-        &self,
-        exercise_id: i64,
-        page: i64,
-        page_size: i64,
-    ) -> Result<Vec<Record>, sqlx::Error> {
-        let offset = (page - 1) * page_size;
+    pub async fn get_all_records(&self, exercise_id: i64) -> Result<Vec<Record>, sqlx::Error> {
         sqlx::query_as::<_, Record>(
-            "SELECT * FROM records WHERE exercise_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM records WHERE exercise_id = ? ORDER BY created_at DESC, id DESC",
         )
         .bind(exercise_id)
-        .bind(page_size)
-        .bind(offset)
         .fetch_all(&self.pool)
         .await
     }
@@ -373,7 +365,7 @@ mod tests {
         assert!(rec_id > 0);
 
         // 4. 验证数据
-        let records = db.page_records(e_id, 1, 10).await.unwrap();
+        let records = db.get_all_records(e_id).await.unwrap();
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].weight, 100.0);
         assert_eq!(records[0].reps, Some(5));
@@ -393,7 +385,7 @@ mod tests {
         db.add_record(e_id, 0.0, Some(12)).await.unwrap();
 
         // 确认记录存在
-        let recs_before = db.page_records(e_id, 1, 10).await.unwrap();
+        let recs_before = db.get_all_records(e_id).await.unwrap();
         assert_eq!(recs_before.len(), 2);
 
         // 2. 删除最顶层的【轮次】
@@ -405,37 +397,8 @@ mod tests {
         assert!(exercises.is_empty(), "动作应该被级联删除");
 
         // 查记录：应该为空
-        let recs_after = db.page_records(e_id, 1, 10).await.unwrap();
+        let recs_after = db.get_all_records(e_id).await.unwrap();
         assert!(recs_after.is_empty(), "记录应该被级联删除");
-    }
-
-    #[tokio::test]
-    async fn test_pagination() {
-        let db = setup_test_db().await;
-        let r_id = db.create_routine("腿", "").await.unwrap();
-        let e_id = db
-            .add_exercise(r_id, "深蹲", 5, "5", "", "kg")
-            .await
-            .unwrap();
-
-        // 插入 15 条记录
-        for i in 0..15 {
-            db.add_record(e_id, 100.0 + i as f64, Some(5))
-                .await
-                .unwrap();
-        }
-
-        // 第 1 页，每页 10 条 -> 应该有 10 条
-        let page1 = db.page_records(e_id, 1, 10).await.unwrap();
-        assert_eq!(page1.len(), 10);
-
-        // 第 2 页，每页 10 条 -> 应该剩余 5 条
-        let page2 = db.page_records(e_id, 2, 10).await.unwrap();
-        assert_eq!(page2.len(), 5);
-
-        // 第 3 页 -> 0 条
-        let page3 = db.page_records(e_id, 3, 10).await.unwrap();
-        assert!(page3.is_empty());
     }
 
     #[tokio::test]
