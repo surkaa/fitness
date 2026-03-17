@@ -100,6 +100,20 @@ interface CommandMap {
         args: { exerciseId: number };
         result: number[];  // 后端返回 Vec<i64> 对应 number[]
     };
+    // 获取数据库字节
+    get_db_bytes: {
+        args: {};
+        result: number[];
+    };
+    // 覆盖数据库
+    import_db_from_bytes: {
+        args: { bytes: number[] };
+        result: void;
+    };
+    restart_app: {
+        args: {};
+        result: void;
+    };
 }
 
 /**

@@ -50,7 +50,7 @@
                 </q-item-section>
                 <q-item-section>导出</q-item-section>
               </q-item>
-              <q-item clickable v-close-popup @click="handleImportFromDownloads">
+              <q-item clickable v-close-popup @click="handleImport">
                 <q-item-section avatar>
                   <q-icon name="upload"/>
                 </q-item-section>
@@ -94,8 +94,8 @@ import type {Routine} from '../types';
 import {useRouter} from "vue-router";
 import {useQuasar} from "quasar";
 import {invokeStrict} from "../utils/invokeStrict.ts";
-import {invoke} from "@tauri-apps/api/core";
-import {relaunch} from "@tauri-apps/plugin-process";
+import {open, save} from '@tauri-apps/plugin-dialog';
+import {readFile, writeFile} from '@tauri-apps/plugin-fs';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -211,62 +211,68 @@ function handleDelete(id: number) {
 
 async function handleExport() {
   try {
-    const destPath = await invoke<string>('export_database_to_downloads');
+    // 1. 调用系统原生的保存对话框（Android 下会唤起 SAF 文件选择器）
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filePath = await save({
+      defaultPath: `fitness_backup_${timestamp}.db`,
+      filters: [{name: 'Database', extensions: ['db']}]
+    });
+
+    if (!filePath) return; // 用户取消了保存
+
+    // 2. 向 Rust 请求数据库文件的完整字节
+    const dbBytes = await invokeStrict('get_db_bytes', {}, loading, $q);
+
+    // 3. 使用前端的 FS 插件直接写入 (Tauri FS 插件已完美处理 Android 的写入权限和路径问题)
+    await writeFile(filePath, new Uint8Array(dbBytes));
+
     $q.notify({
       type: 'positive',
-      message: `导出成功，文件已保存到：${destPath}`,
-      timeout: 5000
+      message: `导出成功！`,
+      timeout: 3000
     });
   } catch (e) {
     $q.notify({type: 'negative', message: '导出失败: ' + e});
   }
 }
 
-// 从 Downloads 恢复的对话框（列表选择）
-async function handleImportFromDownloads() {
+async function handleImport() {
   try {
-    const backups = await invoke<string[]>('list_backups_in_downloads');
-    if (backups.length === 0) {
-      $q.notify('下载目录中没有备份文件');
-      return;
-    }
+    const selected = await open({
+      multiple: false,
+      filters: [{name: 'Database', extensions: ['db']}]
+    });
+
+    if (!selected) return;
+    const filePath = Array.isArray(selected) ? selected[0] : selected;
+
+    const fileBytes = await readFile(filePath);
 
     $q.dialog({
-      title: '选择备份文件',
-      message: '请选择要恢复的备份文件',
-      options: {
-        type: 'radio',
-        model: '',
-        items: backups.map(name => ({label: name, value: name}))
-      },
+      title: '确认恢复',
+      message: '恢复将覆盖当前所有数据，且需要重启应用。确定继续？',
       cancel: true,
       persistent: true
-    }).onOk(async (filename) => {
-      $q.dialog({
-        title: '确认恢复',
-        message: '恢复将覆盖当前所有数据，且需要重启应用。确定继续？',
-        cancel: true,
-        persistent: true
-      }).onOk(async () => {
-        try {
-          await invoke('import_from_downloads', {filename});
-          $q.notify({
-            type: 'positive',
-            message: '恢复成功，点击重启立即生效',
-            timeout: 0,
-            actions: [{
-              label: '立即重启',
-              color: 'white',
-              handler: async () => await relaunch()
-            }]
-          });
-        } catch (e) {
-          $q.notify({type: 'negative', message: '恢复失败: ' + e});
-        }
-      });
+    }).onOk(async () => {
+      try {
+        await invokeStrict('import_db_from_bytes', {bytes: Array.from(fileBytes)}, loading, $q);
+
+        $q.notify({
+          type: 'positive',
+          message: '恢复成功，点击重启立即生效',
+          timeout: 0,
+          actions: [{
+            label: '立即重启',
+            color: 'white',
+            handler: async () => await invokeStrict('restart_app')
+          }]
+        });
+      } catch (e) {
+        $q.notify({type: 'negative', message: '恢复失败: ' + e});
+      }
     });
   } catch (e) {
-    $q.notify({type: 'negative', message: '获取备份列表失败: ' + e});
+    $q.notify({type: 'negative', message: '获取文件失败: ' + e});
   }
 }
 

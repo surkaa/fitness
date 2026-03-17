@@ -176,73 +176,32 @@ async fn get_common_reps(
 }
 
 #[tauri::command]
-async fn export_database_to_downloads(
-    app_handle: AppHandle,
-    state: State<'_, db::Database>,
-) -> Result<String, String> {
-    // 获取下载目录
-    let download_dir = app_handle
-        .path()
-        .download_dir()
-        .map_err(|e| e.to_string())?;
-
-    // 生成带时间戳的文件名
-    let timestamp = Local::now().format("%Y-%m-%d_%H%M%S").to_string();
-    let file_name = format!("fitness_backup_{}.db", timestamp);
-    let dest_path = download_dir.join(file_name);
-
-    // 复制数据库文件
+async fn get_db_bytes(state: State<'_, db::Database>) -> Result<Vec<u8>, String> {
     let source = state.get_db_path();
-    fs::copy(source, &dest_path).map_err(|e| format!("复制文件失败: {}", e))?;
-
-    Ok(dest_path.to_string_lossy().to_string())
+    fs::read(source).map_err(|e| format!("读取数据库文件失败: {}", e))
 }
 
 #[tauri::command]
-async fn list_backups_in_downloads(app_handle: AppHandle) -> Result<Vec<String>, String> {
-    let download_dir = app_handle
-        .path()
-        .download_dir()
-        .map_err(|e| e.to_string())?;
-    let paths = fs::read_dir(&download_dir).map_err(|e| format!("读取目录失败: {}", e))?;
-
-    let mut backups = Vec::new();
-    for entry in paths {
-        let entry = entry.map_err(|e| format!("读取条目失败: {}", e))?;
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("db") {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                backups.push(name.to_string());
-            }
-        }
-    }
-    backups.sort();
-    Ok(backups)
-}
-
-#[tauri::command]
-async fn import_from_downloads(
-    app_handle: AppHandle,
+async fn import_db_from_bytes(
     state: State<'_, db::Database>,
-    filename: String,
+    bytes: Vec<u8>,
 ) -> Result<(), String> {
-    let download_dir = app_handle
-        .path()
-        .download_dir()
-        .map_err(|e| e.to_string())?;
-    let source_path = download_dir.join(filename);
     let dest_path = state.get_db_path();
 
-    // 关闭当前数据库连接
     state
         .close()
         .await
         .map_err(|e| format!("关闭数据库失败: {}", e))?;
 
-    // 复制备份文件覆盖原文件
-    fs::copy(&source_path, dest_path).map_err(|e| format!("复制文件失败: {}", e))?;
+    // 覆盖写入原数据库文件
+    fs::write(dest_path, bytes).map_err(|e| format!("写入文件失败: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+async fn restart_app(app_handle: AppHandle) {
+    app_handle.restart();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -285,9 +244,9 @@ pub fn run() {
             get_all_records,
             update_record,
             get_exercise_stats,
-            export_database_to_downloads,
-            list_backups_in_downloads,
-            import_from_downloads,
+            get_db_bytes,
+            import_db_from_bytes,
+            restart_app,
             get_common_reps
         ])
         .run(tauri::generate_context!())
