@@ -1,4 +1,5 @@
-use tauri::{Manager, State};
+use std::fs;
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_log::log::info;
 
 mod db;
@@ -11,14 +12,24 @@ async fn get_routines(state: State<'_, db::Database>) -> Result<Vec<db::Routine>
 
 /// 创建轮次
 #[tauri::command]
-async fn create_routine(state: State<'_, db::Database>, name: String, desc: String) -> Result<i64, String> {
-    state.create_routine(&name, &desc).await.map_err(|e| e.to_string())
+async fn create_routine(
+    state: State<'_, db::Database>,
+    name: String,
+    desc: String,
+) -> Result<i64, String> {
+    state
+        .create_routine(&name, &desc)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 删除轮次
 #[tauri::command]
 async fn delete_routine(state: State<'_, db::Database>, routine_id: i64) -> Result<(), String> {
-    state.delete_routine(routine_id).await.map_err(|e| e.to_string())
+    state
+        .delete_routine(routine_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 更新轮次
@@ -37,8 +48,14 @@ async fn update_routine(
 
 /// 获取轮次下的动作
 #[tauri::command]
-async fn get_exercises(state: State<'_, db::Database>, routine_id: i64) -> Result<Vec<db::Exercise>, String> {
-    state.get_exercises(routine_id).await.map_err(|e| e.to_string())
+async fn get_exercises(
+    state: State<'_, db::Database>,
+    routine_id: i64,
+) -> Result<Vec<db::Exercise>, String> {
+    state
+        .get_exercises(routine_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 添加动作
@@ -52,7 +69,8 @@ async fn add_exercise(
     note: String,
     unit: String,
 ) -> Result<i64, String> {
-    state.add_exercise(routine_id, &name, sets, &reps, &note, &unit)
+    state
+        .add_exercise(routine_id, &name, sets, &reps, &note, &unit)
         .await
         .map_err(|e| e.to_string())
 }
@@ -60,7 +78,10 @@ async fn add_exercise(
 /// 删除动作
 #[tauri::command]
 async fn delete_exercise(state: State<'_, db::Database>, exercise_id: i64) -> Result<(), String> {
-    state.delete_exercise(exercise_id).await.map_err(|e| e.to_string())
+    state
+        .delete_exercise(exercise_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 更新动作
@@ -88,7 +109,8 @@ async fn add_record(
     weight: f64,
     reps: Option<i64>,
 ) -> Result<i64, String> {
-    state.add_record(exercise_id, weight, reps)
+    state
+        .add_record(exercise_id, weight, reps)
         .await
         .map_err(|e| e.to_string())
 }
@@ -96,7 +118,10 @@ async fn add_record(
 /// 删除记录
 #[tauri::command]
 async fn delete_record(state: State<'_, db::Database>, record_id: i64) -> Result<(), String> {
-    state.delete_record(record_id).await.map_err(|e| e.to_string())
+    state
+        .delete_record(record_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 分页获取记录
@@ -107,7 +132,8 @@ async fn page_records(
     page: i64,
     page_size: i64,
 ) -> Result<Vec<db::Record>, String> {
-    state.page_records(exercise_id, page, page_size)
+    state
+        .page_records(exercise_id, page, page_size)
         .await
         .map_err(|e| e.to_string())
 }
@@ -120,20 +146,64 @@ async fn update_record(
     weight: f64,
     reps: Option<i64>,
 ) -> Result<(), String> {
-    state.update_record(record_id, weight, reps)
+    state
+        .update_record(record_id, weight, reps)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// 获取单个动作的统计信息
 #[tauri::command]
-async fn get_exercise_stats(state: State<'_, db::Database>, exercise_id: i64) -> Result<db::ExerciseStats, String> {
-    state.get_exercise_stats(exercise_id).await.map_err(|e| e.to_string())
+async fn get_exercise_stats(
+    state: State<'_, db::Database>,
+    exercise_id: i64,
+) -> Result<db::ExerciseStats, String> {
+    state
+        .get_exercise_stats(exercise_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn export_database(
+    state: State<'_, db::Database>,
+    destination: String,
+) -> Result<(), String> {
+    let source = state.get_db_path();
+    fs::copy(source, &destination).map_err(|e| format!("复制文件失败: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn import_database(
+    app_handle: AppHandle,
+    state: State<'_, db::Database>,
+    source: String,
+) -> Result<(), String> {
+    let destination = state.get_db_path();
+
+    // 关闭数据库连接，释放文件锁
+    state
+        .close()
+        .await
+        .map_err(|e| format!("关闭数据库失败: {}", e))?;
+
+    // 复制备份文件覆盖原文件
+    fs::copy(&source, destination).map_err(|e| format!("复制文件失败: {}", e))?;
+
+    // 提示用户重启（可立即重启）
+    Ok(())
+}
+
+#[tauri::command]
+async fn restart_app(app_handle: AppHandle) {
+    app_handle.restart();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(tauri_plugin_log::log::LevelFilter::Info)
@@ -168,7 +238,10 @@ pub fn run() {
             delete_record,
             page_records,
             update_record,
-            get_exercise_stats
+            get_exercise_stats,
+            export_database,
+            import_database,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

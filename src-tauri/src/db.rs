@@ -57,6 +57,7 @@ pub struct ExerciseStats {
 
 pub struct Database {
     pool: Pool<Sqlite>,
+    path: String,
 }
 
 impl Database {
@@ -67,18 +68,27 @@ impl Database {
             fs::create_dir_all(app_dir).expect("未能创建应用目录");
         }
 
-        let db_path = format!(
-            "sqlite:{}/fitness_lite.db?mode=rwc",
-            app_dir
-        );
+        let db_path = format!("{}/fitness_lite.db", app_dir);
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
-            .connect(&db_path)
+            .connect(&format!("sqlite://{}?mode=rwc", db_path))
             .await?;
 
-        let db = Database { pool };
+        let db = Database {
+            pool,
+            path: db_path,
+        };
         db.init_tables().await?;
         Ok(db)
+    }
+
+    pub fn get_db_path(&self) -> &str {
+        &self.path
+    }
+
+    pub async fn close(&self) -> Result<(), sqlx::Error> {
+        self.pool.close().await;
+        Ok(())
     }
 
     /// 建表 SQL
@@ -155,7 +165,12 @@ impl Database {
     }
 
     /// 更新轮次
-    pub async fn update_routine(&self, routine_id: i64, name: &str, desc: &str) -> Result<(), sqlx::Error> {
+    pub async fn update_routine(
+        &self,
+        routine_id: i64,
+        name: &str,
+        desc: &str,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE routines SET name = ?, description = ? WHERE id = ?")
             .bind(name)
             .bind(desc)
@@ -277,7 +292,12 @@ impl Database {
     }
 
     /// 更新记录
-    pub async fn update_record(&self, record_id: i64, weight: f64, reps: Option<i64>) -> Result<(), sqlx::Error> {
+    pub async fn update_record(
+        &self,
+        record_id: i64,
+        weight: f64,
+        reps: Option<i64>,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE records SET weight = ?, reps = ? WHERE id = ?")
             .bind(weight)
             .bind(reps)
@@ -290,26 +310,28 @@ impl Database {
     /// 获取单个动作的统计信息
     pub async fn get_exercise_stats(&self, exercise_id: i64) -> Result<ExerciseStats, sqlx::Error> {
         // 总记录数
-        let (total_records,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM records WHERE exercise_id = ?")
-            .bind(exercise_id)
-            .fetch_one(&self.pool)
-            .await?;
+        let (total_records,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM records WHERE exercise_id = ?")
+                .bind(exercise_id)
+                .fetch_one(&self.pool)
+                .await?;
 
         // 最大重量
-        let max_weight: Option<f64> = sqlx::query_scalar("SELECT MAX(weight) FROM records WHERE exercise_id = ?")
-            .bind(exercise_id)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(None);
+        let max_weight: Option<f64> =
+            sqlx::query_scalar("SELECT MAX(weight) FROM records WHERE exercise_id = ?")
+                .bind(exercise_id)
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(None);
 
         // 最后训练日期
         let last_date: Option<chrono::NaiveDateTime> = sqlx::query_scalar(
-            "SELECT created_at FROM records WHERE exercise_id = ? ORDER BY created_at DESC LIMIT 1"
+            "SELECT created_at FROM records WHERE exercise_id = ? ORDER BY created_at DESC LIMIT 1",
         )
-            .bind(exercise_id)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(None);
+        .bind(exercise_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(None);
 
         Ok(ExerciseStats {
             exercise_id,
@@ -363,7 +385,10 @@ mod tests {
 
         // 1. 建立层级数据：轮次 -> 动作 -> 记录
         let r_id = db.create_routine("背部", "").await.unwrap();
-        let e_id = db.add_exercise(r_id, "引体向上", 4, "力竭", "", "个").await.unwrap();
+        let e_id = db
+            .add_exercise(r_id, "引体向上", 4, "力竭", "", "个")
+            .await
+            .unwrap();
         db.add_record(e_id, 0.0, Some(10)).await.unwrap();
         db.add_record(e_id, 0.0, Some(12)).await.unwrap();
 
@@ -388,11 +413,16 @@ mod tests {
     async fn test_pagination() {
         let db = setup_test_db().await;
         let r_id = db.create_routine("腿", "").await.unwrap();
-        let e_id = db.add_exercise(r_id, "深蹲", 5, "5", "", "kg").await.unwrap();
+        let e_id = db
+            .add_exercise(r_id, "深蹲", 5, "5", "", "kg")
+            .await
+            .unwrap();
 
         // 插入 15 条记录
         for i in 0..15 {
-            db.add_record(e_id, 100.0 + i as f64, Some(5)).await.unwrap();
+            db.add_record(e_id, 100.0 + i as f64, Some(5))
+                .await
+                .unwrap();
         }
 
         // 第 1 页，每页 10 条 -> 应该有 10 条
@@ -414,7 +444,10 @@ mod tests {
 
         // 创建轮次和动作
         let r_id = db.create_routine("肩部", "").await.unwrap();
-        let e_id = db.add_exercise(r_id, "推举", 4, "8-12", "", "kg").await.unwrap();
+        let e_id = db
+            .add_exercise(r_id, "推举", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
 
         // 删除轮次，应该级联删除动作
         db.delete_routine(r_id).await.unwrap();

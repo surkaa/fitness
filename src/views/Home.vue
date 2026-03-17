@@ -38,7 +38,30 @@
   </q-dialog>
 
   <q-page class="q-pa-md column">
-    <div class="text-h4 q-mb-md">训练计划</div>
+    <div class="row items-center justify-between q-mb-md">
+      <div class="text-h4">训练计划</div>
+      <div>
+        <q-btn flat icon="more_vert">
+          <q-menu>
+            <q-list style="min-width: 100px">
+              <q-item clickable v-close-popup @click="handleExport">
+                <q-item-section avatar>
+                  <q-icon name="download" />
+                </q-item-section>
+                <q-item-section>导出</q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="handleImport">
+                <q-item-section avatar>
+                  <q-icon name="upload" />
+                </q-item-section>
+                <q-item-section>导入</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+      </div>
+    </div>
+
     <div class="row q-col-gutter-md" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
         <RoutineCard
@@ -65,12 +88,14 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, reactive, ref, computed} from 'vue';
+import {computed, onMounted, reactive, ref} from 'vue';
 import RoutineCard from '../components/RoutineCard.vue';
 import type {Routine} from '../types';
 import {useRouter} from "vue-router";
 import {useQuasar} from "quasar";
 import {invokeStrict} from "../utils/invokeStrict.ts";
+import {invoke} from "@tauri-apps/api/core";
+import {open, save} from "@tauri-apps/plugin-dialog";
 
 const router = useRouter();
 const $q = useQuasar();
@@ -124,7 +149,7 @@ async function handleSave() {
         };
       }
 
-      $q.notify({ type: 'positive', message: '计划已更新' });
+      $q.notify({type: 'positive', message: '计划已更新'});
 
     } else {
       const newId = await invokeStrict('create_routine', {
@@ -138,12 +163,12 @@ async function handleSave() {
         description: formState.description || null
       });
 
-      $q.notify({ type: 'positive', message: '计划创建成功' });
+      $q.notify({type: 'positive', message: '计划创建成功'});
     }
 
     showAddDialog.value = false;
   } catch (e) {
-    $q.notify({ type: 'negative', message: (isEditing.value ? '更新' : '创建') + '失败: ' + e });
+    $q.notify({type: 'negative', message: (isEditing.value ? '更新' : '创建') + '失败: ' + e});
   }
 }
 
@@ -183,6 +208,60 @@ function handleDelete(id: number) {
     });
   })
 }
+
+async function handleExport() {
+  try {
+    const filePath = await save({
+      title: '保存数据库备份',
+      defaultPath: `fitness_backup_${new Date().toISOString().slice(0, 10)}.db`,
+      filters: [{name: 'Database', extensions: ['db']}]
+    });
+    if (!filePath) return; // 用户取消
+
+    await invoke('export_database', {destination: filePath});
+    $q.notify({type: 'positive', message: '导出成功'});
+  } catch (e) {
+    $q.notify({type: 'negative', message: '导出失败: ' + e});
+  }
+}
+
+async function handleImport() {
+  try {
+    const selected = await open({
+      title: '选择备份文件',
+      filters: [{name: 'Database', extensions: ['db']}],
+      multiple: false
+    });
+    if (!selected) return;
+
+    // 二次确认（因为会覆盖数据）
+    $q.dialog({
+      title: '确认导入',
+      message: '导入将覆盖当前所有数据，且需要重启应用才能生效。确定继续？',
+      cancel: true,
+      persistent: true
+    }).onOk(async () => {
+      await invoke('import_database', {source: selected});
+      $q.notify({
+        type: 'positive',
+        message: '导入成功，点击重启立即生效',
+        timeout: 0,
+        actions: [
+          {
+            label: '立即重启',
+            color: 'white',
+            handler: async () => {
+              await invoke('restart_app');
+            }
+          }
+        ]
+      });
+    });
+  } catch (e) {
+    $q.notify({type: 'negative', message: '导入失败: ' + e});
+  }
+}
+
 
 onMounted(() => {
   invokeStrict('get_routines', {}, loading).then(list => {
