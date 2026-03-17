@@ -77,7 +77,7 @@
       <q-card-section>
         <div class="text-h6">{{ recordingExercise?.name }}</div>
         <div class="text-caption text-grey">
-          {{ recordingExercise?.note || '记录数据（允许一天记录多次，在动作详情页的图标会按天取平均）' }}
+          {{ recordingExercise?.note || '记录数据，一天允许记录多次，动作详图表会按天取平均' }}
         </div>
       </q-card-section>
 
