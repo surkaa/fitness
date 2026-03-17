@@ -1,4 +1,4 @@
-# Fitness Tracker Application
+# 健身数据记录软件
 
-This is a simple fitness tracker application that allows users to set fitness goals, log workouts, and track their progress over time.
+这是一款简单的健身数据记录软件，允许你设定健身目标、记录锻炼内容，并跟踪自己的进展。
 
