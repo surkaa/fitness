@@ -38,11 +38,11 @@
             {{ record.weight }} <span class="text-caption text-grey-7">{{ unit }}</span>
           </q-item-label>
           <q-item-label caption>
-            {{ formatDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}
+            {{ formatRecordDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}
           </q-item-label>
         </q-item-section>
 
-        <q-item-section side>
+        <q-item-section side style="flex-direction: row" class="items-center q-gutter-xs">
           <q-btn
               icon="edit"
               flat
@@ -107,7 +107,7 @@ import {CanvasRenderer} from 'echarts/renderers';
 import {LineChart} from 'echarts/charts';
 import {DataZoomComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
 import {ExerciseRecord} from "../types.ts";
-import {formatDate} from "../utils/format.ts";
+import {formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
 
 use([
