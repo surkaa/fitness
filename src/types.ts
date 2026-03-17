@@ -23,3 +23,10 @@ export interface ExerciseRecord {
     weight: number;
     reps: number | null;
 }
+
+export interface ExerciseStats {
+    exerciseId: number;
+    totalRecords: number;
+    maxWeight: number | null;
+    lastDate: string | null; // ISO 8601 字符串
+}

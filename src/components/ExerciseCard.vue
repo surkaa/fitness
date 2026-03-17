@@ -10,6 +10,19 @@
         <q-item-label caption class="text-primary">
           单位: {{ formatUnit(exercise.unit) }}
         </q-item-label>
+
+        <q-item-label caption v-if="stats">
+          <span>总记录: {{ stats.totalRecords }}次</span>
+          <span v-if="stats.maxWeight !== null" class="q-ml-sm">
+            最大: {{ stats.maxWeight }}{{ formatUnit(exercise.unit) }}
+          </span>
+          <span v-if="stats.lastDate" class="q-ml-sm">
+            上次训练时间: {{ formatRecordDate(stats.lastDate) }}
+          </span>
+        </q-item-label>
+        <q-item-label caption v-else class="text-grey-5">
+          暂无记录
+        </q-item-label>
       </q-item-section>
 
       <q-item-section side>
@@ -46,11 +59,13 @@
 </template>
 
 <script setup lang="ts">
-import type {Exercise} from '../types';
-import {formatUnit} from "../utils/unitConvert.ts";
+import type {Exercise, ExerciseStats} from '../types';
+import {formatUnit} from '../utils/unitConvert';
+import {formatRecordDate} from '../utils/format';
 
 defineProps<{
-  exercise: Exercise
+  exercise: Exercise;
+  stats?: ExerciseStats;
 }>();
 
 defineEmits<{

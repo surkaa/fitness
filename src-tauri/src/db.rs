@@ -46,6 +46,15 @@ pub struct Record {
     pub reps: Option<i64>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExerciseStats {
+    pub exercise_id: i64,
+    pub total_records: i64,
+    pub max_weight: Option<f64>,
+    pub last_date: Option<chrono::NaiveDateTime>,
+}
+
 pub struct Database {
     pool: Pool<Sqlite>,
 }
@@ -276,6 +285,38 @@ impl Database {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    /// 获取单个动作的统计信息
+    pub async fn get_exercise_stats(&self, exercise_id: i64) -> Result<ExerciseStats, sqlx::Error> {
+        // 总记录数
+        let (total_records,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM records WHERE exercise_id = ?")
+            .bind(exercise_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        // 最大重量
+        let max_weight: Option<f64> = sqlx::query_scalar("SELECT MAX(weight) FROM records WHERE exercise_id = ?")
+            .bind(exercise_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or(None);
+
+        // 最后训练日期
+        let last_date: Option<chrono::NaiveDateTime> = sqlx::query_scalar(
+            "SELECT created_at FROM records WHERE exercise_id = ? ORDER BY created_at DESC LIMIT 1"
+        )
+            .bind(exercise_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or(None);
+
+        Ok(ExerciseStats {
+            exercise_id,
+            total_records,
+            max_weight,
+            last_date,
+        })
     }
 }
 

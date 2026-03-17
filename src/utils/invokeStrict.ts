@@ -1,6 +1,6 @@
 import {invoke} from "@tauri-apps/api/core";
 import {Ref} from "vue";
-import {Exercise, ExerciseRecord, Routine} from "../types.ts";
+import {Exercise, ExerciseRecord, ExerciseStats, Routine} from "../types.ts";
 import {QVueGlobals} from "quasar";
 
 /**
@@ -91,6 +91,11 @@ interface CommandMap {
     update_record: {
         args: { recordId: number; weight: number; reps: number | null };
         result: void;
+    };
+    // 获取单个动作统计
+    get_exercise_stats: {
+        args: { exerciseId: number };
+        result: ExerciseStats;
     };
 }
 

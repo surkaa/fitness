@@ -125,6 +125,12 @@ async fn update_record(
         .map_err(|e| e.to_string())
 }
 
+/// 获取单个动作的统计信息
+#[tauri::command]
+async fn get_exercise_stats(state: State<'_, db::Database>, exercise_id: i64) -> Result<db::ExerciseStats, String> {
+    state.get_exercise_stats(exercise_id).await.map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -161,7 +167,8 @@ pub fn run() {
             add_record,
             delete_record,
             page_records,
-            update_record
+            update_record,
+            get_exercise_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
