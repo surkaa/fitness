@@ -48,13 +48,13 @@
                 <q-item-section avatar>
                   <q-icon name="download"/>
                 </q-item-section>
-                <q-item-section>数据导出</q-item-section>
+                <q-item-section>导出</q-item-section>
               </q-item>
               <q-item clickable v-close-popup @click="handleImportFromDownloads">
                 <q-item-section avatar>
                   <q-icon name="upload"/>
                 </q-item-section>
-                <q-item-section>数据导入</q-item-section>
+                <q-item-section>导入</q-item-section>
               </q-item>
             </q-list>
           </q-menu>
