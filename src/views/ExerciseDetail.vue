@@ -1,5 +1,5 @@
 <template>
-  <q-page padding class="column">
+  <q-page padding class="column no-wrap overflow-hidden" :style-fn="pageStyleFn">
     <div class="row items-center q-mb-md">
       <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
       <div class="text-h5 q-ml-sm">{{ exerciseName }}</div>
@@ -28,45 +28,47 @@
       </div>
     </div>
 
-    <div v-if="records.length === 0" class="text-center text-grey q-mt-lg">
-      暂无训练记录
+    <div class="col scroll">
+      <div v-if="records.length === 0" class="text-center text-grey q-mt-lg">
+        暂无训练记录
+      </div>
+
+      <q-list separator bordered class="rounded-borders bg-white" v-else>
+        <q-item v-for="record in records" :key="record.id">
+          <q-item-section avatar>
+            <q-avatar color="primary" text-color="white" icon="fitness_center" size="sm"/>
+          </q-item-section>
+
+          <q-item-section>
+            <q-item-label class="text-weight-bold text-subtitle1">
+              {{ record.weight }} <span class="text-caption text-grey-7">{{ unit }}</span>
+            </q-item-label>
+            <q-item-label caption>
+              {{ formatRecordDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}
+            </q-item-label>
+          </q-item-section>
+
+          <q-item-section side style="flex-direction: row" class="items-center q-gutter-xs">
+            <q-btn
+                icon="edit"
+                flat
+                round
+                color="grey-5"
+                size="sm"
+                @click="handleEditRecord(record)"
+            />
+            <q-btn
+                icon="delete"
+                flat
+                round
+                color="grey-5"
+                size="sm"
+                @click="handleDelete(record.id)"
+            />
+          </q-item-section>
+        </q-item>
+      </q-list>
     </div>
-
-    <q-list separator bordered class="rounded-borders bg-white" v-else>
-      <q-item v-for="record in records" :key="record.id">
-        <q-item-section avatar>
-          <q-avatar color="primary" text-color="white" icon="fitness_center" size="sm"/>
-        </q-item-section>
-
-        <q-item-section>
-          <q-item-label class="text-weight-bold text-subtitle1">
-            {{ record.weight }} <span class="text-caption text-grey-7">{{ unit }}</span>
-          </q-item-label>
-          <q-item-label caption>
-            {{ formatRecordDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}
-          </q-item-label>
-        </q-item-section>
-
-        <q-item-section side style="flex-direction: row" class="items-center q-gutter-xs">
-          <q-btn
-              icon="edit"
-              flat
-              round
-              color="grey-5"
-              size="sm"
-              @click="handleEditRecord(record)"
-          />
-          <q-btn
-              icon="delete"
-              flat
-              round
-              color="grey-5"
-              size="sm"
-              @click="handleDelete(record.id)"
-          />
-        </q-item-section>
-      </q-item>
-    </q-list>
 
     <!-- 编辑记录弹窗 -->
     <q-dialog v-model="showEditDialog" persistent>
@@ -274,6 +276,10 @@ async function handleUpdateRecord() {
   } catch (e) {
     $q.notify({type: 'negative', message: '更新失败: ' + e});
   }
+}
+
+function pageStyleFn(offset: number, height: number) {
+  return {height: `${height - offset}px`}
 }
 
 onMounted(() => {
