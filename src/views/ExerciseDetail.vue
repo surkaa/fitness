@@ -114,6 +114,7 @@ import {DataZoomComponent, GridComponent, TitleComponent, TooltipComponent} from
 import {ExerciseRecord} from "../types.ts";
 import {formatNumber, formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
+import {useExerciseStore} from "../stores/exerciseStore.ts";
 
 use([
   CanvasRenderer,
@@ -127,6 +128,7 @@ use([
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
+const exerciseStore = useExerciseStore();
 
 // 获取参数
 const exerciseId = Number(route.params.id);
@@ -231,6 +233,7 @@ function handleDelete(recordId: number) {
       await invokeStrict('delete_record', {recordId});
       // 从本地列表中移除
       records.value = records.value.filter(r => r.id !== recordId);
+      await exerciseStore.fetchForExercise(exerciseId);  // 刷新统计
       $q.notify({type: 'positive', message: '已删除', timeout: 1000});
     } catch (e) {
       $q.notify({type: 'negative', message: String(e)});
@@ -266,6 +269,9 @@ async function handleUpdateRecord() {
         reps: editForm.reps
       };
     }
+
+    // 刷新统计
+    await exerciseStore.fetchForExercise(exerciseId);
 
     $q.notify({type: 'positive', message: '记录已更新'});
     showEditDialog.value = false;

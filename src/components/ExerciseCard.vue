@@ -11,13 +11,13 @@
           单位: {{ formatUnit(exercise.unit) }}
         </q-item-label>
 
-        <q-item-label caption v-if="stats">
-          <span>总记录: {{ stats.totalRecords }}次</span>
-          <span v-if="stats.maxWeight !== null" class="q-ml-sm">
-            最大: {{ stats.maxWeight }}{{ formatUnit(exercise.unit) }}
+        <q-item-label caption v-if="exerciseStore.stats[exercise.id]">
+          <span>共记录: {{ exerciseStore.stats[exercise.id].totalRecords }}次</span>
+          <span v-if="exerciseStore.stats[exercise.id].maxWeight !== null" class="q-ml-sm">
+            最大: {{ exerciseStore.stats[exercise.id].maxWeight }}{{ formatUnit(exercise.unit) }}
           </span>
-          <span v-if="stats.lastDate" class="q-ml-sm">
-            上次训练时间: {{ formatRecordDate(stats.lastDate) }}
+          <span v-if="exerciseStore.stats[exercise.id].lastDate" class="q-ml-sm">
+            上次训练时间: {{ formatRecordDate(exerciseStore.stats[exercise.id].lastDate!) }}
           </span>
         </q-item-label>
         <q-item-label caption v-else class="text-grey-5">
@@ -59,14 +59,16 @@
 </template>
 
 <script setup lang="ts">
-import type {Exercise, ExerciseStats} from '../types';
+import type {Exercise} from '../types';
 import {formatUnit} from '../utils/unitConvert';
 import {formatRecordDate} from '../utils/format';
+import {useExerciseStore} from "../stores/exerciseStore.ts";
 
 defineProps<{
   exercise: Exercise;
-  stats?: ExerciseStats;
 }>();
+
+const exerciseStore = useExerciseStore();
 
 defineEmits<{
   (e: 'click'): void;

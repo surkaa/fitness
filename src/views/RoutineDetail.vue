@@ -14,7 +14,6 @@
       <div class="col-12" v-for="ex in exercises" :key="ex.id">
         <ExerciseCard
             :exercise="ex"
-            :stats="statsMap.get(ex.id)"
             @click="goToExerciseHistory(ex)"
             @delete="handleDeleteExercise"
             @record="openRecordDialog"
@@ -115,13 +114,15 @@ import {computed, onMounted, reactive, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useQuasar} from 'quasar';
 import {invokeStrict} from '../utils/invokeStrict';
-import type {Exercise, ExerciseStats} from '../types';
+import type {Exercise} from '../types';
 import ExerciseCard from '../components/ExerciseCard.vue';
 import {formatUnit, unitOptions} from "../utils/unitConvert.ts";
+import {useExerciseStore} from "../stores/exerciseStore.ts";
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
+const exerciseStore = useExerciseStore();
 
 // 路由参数 ID
 const routineId = Number(route.params.id);
@@ -135,8 +136,6 @@ const showAddDialog = ref(false);
 const showRecordDialog = ref(false);
 const editingId = ref<number | null>(null);
 const isEditing = computed(() => editingId.value !== null);
-
-const statsMap = ref<Map<number, ExerciseStats>>(new Map());
 
 // 表单数据
 const formState = reactive({
@@ -158,35 +157,13 @@ const recordForm = reactive({
 async function loadData() {
   try {
     exercises.value = await invokeStrict('get_exercises', {routineId}, loading);
-
-    // 并发请求每个动作的统计
-    const promises = exercises.value.map(ex =>
-        invokeStrict('get_exercise_stats', {exerciseId: ex.id})
-            .then(stat => ({id: ex.id, stat}))
-            .catch(err => {
-              console.warn(`获取动作 ${ex.id} 统计失败`, err);
-              return {id: ex.id, stat: null};
-            })
-    );
-    const results = await Promise.all(promises);
-    const map = new Map();
-    results.forEach(({id, stat}) => {
-      if (stat) map.set(id, stat);
-    });
-    statsMap.value = map;
+    // 批量获取统计
+    const ids = exercises.value.map(e => e.id);
+    if (ids.length) {
+      await exerciseStore.fetchForExercises(ids);
+    }
   } catch (e) {
     $q.notify({type: 'negative', message: String(e)});
-  }
-}
-
-// 刷新单个动作的统计（用于记录添加/删除后更新）
-async function refreshExerciseStats(exerciseId: number) {
-  try {
-    const stat = await invokeStrict('get_exercise_stats', {exerciseId});
-    statsMap.value.set(exerciseId, stat);
-    statsMap.value = new Map(statsMap.value); // 触发响应式更新
-  } catch (e) {
-    console.warn('刷新统计失败', e);
   }
 }
 
@@ -268,8 +245,7 @@ function handleDeleteExercise(id: number) {
     try {
       await invokeStrict('delete_exercise', {exerciseId: id});
       exercises.value = exercises.value.filter(e => e.id !== id);
-      statsMap.value.delete(id);
-      statsMap.value = new Map(statsMap.value);
+      exerciseStore.removeStats(id);
       $q.notify('动作已删除');
     } catch (e) {
       $q.notify({type: 'negative', message: String(e)});
@@ -301,7 +277,7 @@ async function handleSaveRecord() {
 
     $q.notify({type: 'positive', message: `记录成功: ${recordForm.weight} ${recordingExercise.value.unit}`});
     showRecordDialog.value = false;
-    await refreshExerciseStats(recordingExercise.value.id);
+    await exerciseStore.fetchForExercise(recordingExercise.value.id);
   } catch (e) {
     $q.notify({type: 'negative', message: '记录失败: ' + e});
   }
