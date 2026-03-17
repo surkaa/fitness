@@ -63,3 +63,8 @@ export function formatRecordDate(isoString: string): string {
     // 不同年：完整日期 YYYY-MM-DD
     return `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
 }
+
+// 格式化小数点 保留一位小数
+export function formatNumber(n: number): string {
+    return n.toFixed(1);
+}

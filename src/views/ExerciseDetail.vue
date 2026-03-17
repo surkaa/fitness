@@ -21,7 +21,12 @@
       </q-card-section>
     </q-card>
 
-    <div class="text-h6 q-mb-sm q-px-sm">历史记录</div>
+    <div class="row items-center q-mb-sm q-px-sm">
+      <div class="text-h6">历史记录</div>
+      <div class="text-caption text-grey q-ml-md">
+        历时{{ dailyAveraged.length }}天，共训练{{ records.length }}组
+      </div>
+    </div>
 
     <div v-if="records.length === 0" class="text-center text-grey q-mt-lg">
       暂无训练记录
@@ -107,7 +112,7 @@ import {CanvasRenderer} from 'echarts/renderers';
 import {LineChart} from 'echarts/charts';
 import {DataZoomComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
 import {ExerciseRecord} from "../types.ts";
-import {formatRecordDate} from "../utils/format.ts";
+import {formatNumber, formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
 
 use([
@@ -150,7 +155,7 @@ const dailyAveraged = computed(() => {
   }
   // 转为数组并按日期排序
   return Array.from(map.entries())
-      .map(([day, {total, count}]) => ({day, avgWeight: total / count}))
+      .map(([day, {total, count}]) => ({day, avgWeight: formatNumber(total / count)}))
       .sort((a, b) => a.day.localeCompare(b.day));
 });
 const chartOption = computed(() => {
