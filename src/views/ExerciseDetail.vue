@@ -1,8 +1,25 @@
 <template>
   <q-page padding class="column no-wrap overflow-hidden" :style-fn="pageStyleFn">
-    <div class="row items-center q-mb-md">
-      <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
-      <div class="text-h5 q-ml-sm">{{ exerciseName }}</div>
+    <div class="row items-center justify-between q-mb-md">
+      <div class="row items-center">
+        <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
+        <div class="text-h5 q-ml-sm">{{ exerciseName }}</div>
+      </div>
+
+      <div>
+        <q-btn flat round icon="more_vert">
+          <q-menu>
+            <q-list style="min-width: 150px">
+              <q-item clickable v-close-popup @click="toggleInvert">
+                <q-item-section avatar>
+                  <q-icon :name="isInverted ? 'trending_up' : 'trending_down'" />
+                </q-item-section>
+                <q-item-section>{{ isInverted ? '设为越高越好' : '设为越低越好' }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+      </div>
     </div>
 
     <q-card flat bordered class="q-mb-md bg-grey-1">
@@ -117,6 +134,7 @@ import {ExerciseRecord} from "../types.ts";
 import {formatNumber, formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
+import { useStorage } from '@vueuse/core';
 
 use([
   CanvasRenderer,
@@ -136,6 +154,12 @@ const exerciseStore = useExerciseStore();
 const exerciseId = Number(route.params.id);
 const exerciseName = (history.state.exerciseName as string) || '动作详情';
 const unit = (history.state.exerciseUnit as string) || 'kg';
+
+// 在本地持久化一个数组，记录所有“越低越好”的动作 ID
+const invertedExercises = useStorage<number[]>('inverted_exercise_ids', []);
+
+// 判断当前动作是否是越低越好
+const isInverted = computed(() => invertedExercises.value.includes(exerciseId));
 
 const records = ref<ExerciseRecord[]>([]);
 const loading = ref(false);
@@ -187,6 +211,7 @@ const chartOption = computed(() => {
     yAxis: {
       type: 'value',
       scale: true,
+      inverse: isInverted.value,
       splitLine: {lineStyle: {type: 'dashed'}}
     },
     series: [
@@ -280,6 +305,20 @@ async function handleUpdateRecord() {
 
 function pageStyleFn(offset: number, height: number) {
   return {height: `${height - offset}px`}
+}
+
+function toggleInvert() {
+  if (isInverted.value) {
+    invertedExercises.value = invertedExercises.value.filter(id => id !== exerciseId);
+  } else {
+    invertedExercises.value.push(exerciseId);
+  }
+  $q.notify({
+    type: 'positive',
+    message: isInverted.value ? '走势图已切换为：越低越好' : '走势图已切换为：越高越好',
+    position: 'top',
+    timeout: 1000
+  });
 }
 
 onMounted(() => {
