@@ -52,12 +52,12 @@ export function formatRecordDate(isoString: string): string {
 
     if (isSameMonth(recordDate, now)) {
         // 当月内（非当天/昨天）：几号 + 时间
-        return `${recordDate.getDate()}日 ${formatTime(recordDate)}`;
+        return `${recordDate.getDate()}号 ${formatTime(recordDate)}`;
     }
 
     if (isSameYear(recordDate, now)) {
-        // 同年不同月：月-日
-        return `${recordDate.getMonth() + 1}月${recordDate.getDate()}日`;
+        // 同年不同月：月-号
+        return `${recordDate.getMonth() + 1}月${recordDate.getDate()}号`;
     }
 
     // 不同年：完整日期 YYYY-MM-DD
