@@ -1,5 +1,53 @@
 <template>
-  <q-dialog v-model="showAddDialog" persistent @hide="resetForm">
+  <q-page class="q-pa-md column">
+    <Header title="训练计划">
+      <template #right>
+        <q-btn flat round icon="more_vert">
+          <q-menu>
+            <q-list>
+              <q-item clickable v-close-popup @click="handleExport">
+                <q-item-section avatar>
+                  <q-icon name="download" />
+                </q-item-section>
+                <q-item-section>导出</q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="handleImport">
+                <q-item-section avatar>
+                  <q-icon name="upload" />
+                </q-item-section>
+                <q-item-section>导入</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+      </template>
+    </Header>
+
+    <div class="row q-col-gutter-md" v-if="routines.length">
+      <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
+        <RoutineCard
+            :routine="r"
+            @click="goToRoutine(r)"
+            @delete="handleDelete(r.id)"
+            @edit="handleEdit(r.id)"
+        />
+      </div>
+    </div>
+
+    <div v-else-if="!loading" class="col flex flex-center column text-grey">
+      <q-icon name="fitness_center" size="64px"/>
+      <div class="q-mt-md text-h6" style="opacity: 0.7">
+        还没有训练计划
+      </div>
+      <div class="text-caption">点击右下角添加</div>
+    </div>
+
+    <q-page-sticky position="bottom-right" :offset="[18, 18]">
+      <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
+    </q-page-sticky>
+  </q-page>
+
+  <q-dialog v-model="showAddDialog" @hide="resetForm">
     <q-card style="min-width: 350px">
       <q-card-section>
         <div class="text-h6">{{ isEditing ? '编辑训练计划' : '新建训练计划' }}</div>
@@ -36,55 +84,6 @@
       </q-card-section>
     </q-card>
   </q-dialog>
-
-  <q-page class="q-pa-md column">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">训练计划</div>
-      <div>
-        <q-btn flat icon="more_vert">
-          <q-menu>
-            <q-list>
-              <q-item clickable v-close-popup @click="handleExport">
-                <q-item-section avatar>
-                  <q-icon name="download"/>
-                </q-item-section>
-                <q-item-section>导出</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="handleImport">
-                <q-item-section avatar>
-                  <q-icon name="upload"/>
-                </q-item-section>
-                <q-item-section>导入</q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
-        </q-btn>
-      </div>
-    </div>
-
-    <div class="row q-col-gutter-md" v-if="routines.length">
-      <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
-        <RoutineCard
-            :routine="r"
-            @click="goToRoutine(r)"
-            @delete="handleDelete(r.id)"
-            @edit="handleEdit(r.id)"
-        />
-      </div>
-    </div>
-
-    <div v-else-if="!loading" class="col flex flex-center column text-grey">
-      <q-icon name="fitness_center" size="64px"/>
-      <div class="q-mt-md text-h6" style="opacity: 0.7">
-        还没有训练计划
-      </div>
-      <div class="text-caption">点击右下角添加</div>
-    </div>
-
-    <q-page-sticky position="bottom-right" :offset="[18, 18]">
-      <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
-    </q-page-sticky>
-  </q-page>
 </template>
 
 <script setup lang="ts">
@@ -96,6 +95,7 @@ import {useQuasar} from "quasar";
 import {invokeStrict} from "../utils/invokeStrict.ts";
 import {open, save} from '@tauri-apps/plugin-dialog';
 import {readFile, writeFile} from '@tauri-apps/plugin-fs';
+import Header from "../components/Header.vue";
 
 const router = useRouter();
 const $q = useQuasar();

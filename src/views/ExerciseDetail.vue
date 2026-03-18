@@ -1,12 +1,7 @@
 <template>
   <q-page padding class="column no-wrap overflow-hidden" :style-fn="pageStyleFn">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="row items-center">
-        <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
-        <div class="text-h5 q-ml-sm">{{ exerciseName }}</div>
-      </div>
-
-      <div>
+    <Header :title="exerciseName" :showBack="true">
+      <template #right>
         <q-btn flat round icon="more_vert">
           <q-menu>
             <q-list style="min-width: 150px">
@@ -19,8 +14,8 @@
             </q-list>
           </q-menu>
         </q-btn>
-      </div>
-    </div>
+      </template>
+    </Header>
 
     <q-card flat bordered class="q-mb-md bg-grey-1">
       <q-card-section>
@@ -121,7 +116,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue';
-import {useRoute, useRouter} from 'vue-router';
+import {useRoute} from 'vue-router';
 import {date, useQuasar} from 'quasar';
 import {invokeStrict} from '../utils/invokeStrict';
 
@@ -134,7 +129,8 @@ import {ExerciseRecord} from "../types.ts";
 import {formatNumber, formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
-import { useStorage } from '@vueuse/core';
+import {useStorage} from '@vueuse/core';
+import Header from "../components/Header.vue";
 
 use([
   CanvasRenderer,
@@ -146,7 +142,6 @@ use([
 ]);
 
 const route = useRoute();
-const router = useRouter();
 const $q = useQuasar();
 const exerciseStore = useExerciseStore();
 

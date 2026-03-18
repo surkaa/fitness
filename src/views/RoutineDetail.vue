@@ -1,9 +1,6 @@
 <template>
   <q-page class="q-pa-md column">
-    <div class="row items-center q-mb-md">
-      <q-btn flat round icon="arrow_back" color="primary" @click="router.back()"/>
-      <div class="text-h6 q-ml-md">{{ routineName || '训练动作列表' }}</div>
-    </div>
+    <Header :title="routineName || '训练动作列表'" :showBack="true" />
 
     <div v-if="exercises.length === 0" class="col flex flex-center column text-grey">
       <q-icon name="fitness_center" size="64px"/>
@@ -131,6 +128,7 @@ import type {Exercise} from '../types';
 import ExerciseCard from '../components/ExerciseCard.vue';
 import {formatUnit, unitOptions} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
+import Header from "../components/Header.vue";
 
 const route = useRoute();
 const router = useRouter();
