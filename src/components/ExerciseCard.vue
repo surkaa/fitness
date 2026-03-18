@@ -21,6 +21,10 @@
           </div>
         </div>
 
+        <div v-if="exerciseStore.loadingStats[exercise.id]" class="text-grey-5">
+          <q-spinner size="sm" /> 加载中...
+        </div>
+
         <div
             v-if="exerciseStore.stats[exercise.id]"
             class="row items-center text-caption text-grey-7 q-gutter-x-md"
