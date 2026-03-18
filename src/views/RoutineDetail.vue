@@ -7,7 +7,7 @@
       <div class="q-mt-md">还没有动作，点击右下角添加</div>
     </div>
 
-    <div class="row q-col-gutter-md" v-else>
+    <div class="row q-col-gutter-md q-pb-xl" v-else>
       <div class="col-12" v-for="ex in exercises" :key="ex.id">
         <ExerciseCard
             :exercise="ex"

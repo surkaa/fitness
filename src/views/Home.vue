@@ -2,7 +2,7 @@
   <q-page class="q-pa-md column">
     <Header title="训练计划" :rightAction="rightAction"/>
 
-    <div class="row q-col-gutter-md" v-if="routines.length">
+    <div class="row q-col-gutter-md q-pb-xl" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
         <RoutineCard
             :routine="r"
