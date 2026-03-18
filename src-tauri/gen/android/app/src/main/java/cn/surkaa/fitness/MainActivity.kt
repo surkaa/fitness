@@ -1,4 +1,4 @@
-package com.surkaa.fitness
+package cn.surkaa.fitness
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

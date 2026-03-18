@@ -16,10 +16,10 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.surkaa.fitness"
+    namespace = "cn.surkaa.fitness"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.surkaa.fitness"
+        applicationId = "cn.surkaa.fitness"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -70,6 +70,17 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+}
+
+
+android.applicationVariants.all {
+    outputs.all {
+        if (this is com.android.build.gradle.internal.api.ApkVariantOutputImpl && buildType.name == "release") {
+            val config = project.android.defaultConfig
+            val versionName = config.versionName
+            this.outputFileName = "fitness_${versionName}.apk"
+        }
     }
 }
 
