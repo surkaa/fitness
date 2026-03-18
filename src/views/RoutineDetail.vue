@@ -27,7 +27,7 @@
     </q-page-sticky>
   </q-page>
 
-  <q-dialog v-model="showAddDialog" persistent @hide="resetForm">
+  <q-dialog v-model="showAddDialog" @hide="resetForm">
     <q-card style="min-width: 350px">
       <q-card-section>
         <div class="text-h6">{{ isEditing ? '编辑动作' : '添加新动作' }}</div>
