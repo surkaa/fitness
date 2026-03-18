@@ -24,8 +24,7 @@ export interface Exercise {
 export interface ExerciseRecord {
     id: number;
     exerciseId: number;
-    // ISO 8601 字符串
-    createdAt: string;
+    createdAt: number;
     weight: number;
     reps: number | null;
 }
@@ -34,5 +33,5 @@ export interface ExerciseStats {
     exerciseId: number;
     totalRecords: number;
     maxWeight: number | null;
-    lastDate: string | null; // ISO 8601 字符串
+    lastDate: number;
 }

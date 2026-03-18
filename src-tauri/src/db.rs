@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, Sqlite};
 use std::fs;
 use std::path::Path;
+use chrono::{DateTime, Utc};
 
 // 轮次 (比如: "一轮次: 胸肩")
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -39,7 +40,8 @@ pub struct Record {
     pub id: i64,
     pub exercise_id: i64,
     /// 记录时间
-    pub created_at: chrono::NaiveDateTime,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub created_at: DateTime<Utc>,
     /// 重量 (数值，配合Exercise里的unit使用)
     pub weight: f64,
     /// 实际做了几个
@@ -52,7 +54,8 @@ pub struct ExerciseStats {
     pub exercise_id: i64,
     pub total_records: i64,
     pub max_weight: Option<f64>,
-    pub last_date: Option<chrono::NaiveDateTime>,
+    #[serde(with = "chrono::serde::ts_milliseconds_option")]
+    pub last_date: Option<DateTime<Utc>>,
 }
 
 pub struct Database {
@@ -317,7 +320,7 @@ impl Database {
                 .unwrap_or(None);
 
         // 最后训练日期
-        let last_date: Option<chrono::NaiveDateTime> = sqlx::query_scalar(
+        let last_date: Option<DateTime<Utc>> = sqlx::query_scalar(
             "SELECT created_at FROM records WHERE exercise_id = ? ORDER BY created_at DESC LIMIT 1",
         )
         .bind(exercise_id)

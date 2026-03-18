@@ -37,7 +37,7 @@
 
           <div v-if="exerciseStore.stats[exercise.id].lastDate" class="row items-center">
             <q-icon name="history" size="16px" class="q-mr-xs text-secondary"/>
-            <span>{{ formatRecordDate(exerciseStore.stats[exercise.id].lastDate!) }}</span>
+            <span>{{ formatRecordDate(exerciseStore.stats[exercise.id].lastDate) }}</span>
           </div>
         </div>
 
