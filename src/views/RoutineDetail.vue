@@ -253,8 +253,7 @@ function handleDeleteExercise(id: number) {
   $q.dialog({
     title: '确认删除',
     message: '删除动作会连同历史记录一起删除，确定吗？',
-    cancel: true,
-    persistent: true
+    cancel: true
   }).onOk(async () => {
     try {
       await invokeStrict('delete_exercise', {exerciseId: id});

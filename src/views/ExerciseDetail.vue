@@ -83,7 +83,7 @@
     </div>
 
     <!-- 编辑记录弹窗 -->
-    <q-dialog v-model="showEditDialog" persistent>
+    <q-dialog v-model="showEditDialog">
       <q-card style="min-width: 300px">
         <q-card-section>
           <div class="text-h6">编辑记录</div>

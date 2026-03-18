@@ -194,8 +194,7 @@ function handleDelete(id: number) {
   $q.dialog({
     title: '确认删除',
     message: '确定要删除该计划吗？此操作不可撤销。',
-    cancel: true,
-    persistent: true
+    cancel: true
   }).onOk(() => {
     invokeStrict('delete_routine', {
       routineId: id
