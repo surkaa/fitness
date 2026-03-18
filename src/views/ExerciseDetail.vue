@@ -1,21 +1,6 @@
 <template>
   <q-page padding class="column no-wrap overflow-hidden" :style-fn="pageStyleFn">
-    <Header :title="exerciseName" :showBack="true">
-      <template #right>
-        <q-btn flat round icon="more_vert">
-          <q-menu>
-            <q-list style="min-width: 150px">
-              <q-item clickable v-close-popup @click="toggleInvert">
-                <q-item-section avatar>
-                  <q-icon :name="isInverted ? 'trending_up' : 'trending_down'" />
-                </q-item-section>
-                <q-item-section>{{ isInverted ? '设为越高越好' : '设为越低越好' }}</q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
-        </q-btn>
-      </template>
-    </Header>
+    <Header :title="exerciseName" :showBack="true" :rightAction="rightAction"/>
 
     <q-card flat bordered class="q-mb-md bg-grey-1">
       <q-card-section>
@@ -231,6 +216,12 @@ const chartOption = computed(() => {
     ]
   };
 });
+
+const rightAction = computed(() => [{
+  label: isInverted ? '设为越高越好' : '设为越低越好',
+  icon: isInverted ? 'trending_up' : 'trending_down',
+  action: toggleInvert
+}]);
 
 async function loadHistory() {
   try {

@@ -1,3 +1,10 @@
+export interface HeaderRightAction {
+    icon: string;
+    label: string;
+    action: () => void;
+}
+
+
 export interface Routine {
     id: number;
     name: string;

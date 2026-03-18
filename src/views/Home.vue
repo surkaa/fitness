@@ -1,27 +1,6 @@
 <template>
   <q-page class="q-pa-md column">
-    <Header title="训练计划">
-      <template #right>
-        <q-btn flat round icon="more_vert">
-          <q-menu>
-            <q-list style="min-width: 150px">
-              <q-item clickable v-close-popup @click="handleExport">
-                <q-item-section avatar>
-                  <q-icon name="download" />
-                </q-item-section>
-                <q-item-section>数据导出</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="handleImport">
-                <q-item-section avatar>
-                  <q-icon name="upload" />
-                </q-item-section>
-                <q-item-section>数据导入</q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
-        </q-btn>
-      </template>
-    </Header>
+    <Header title="训练计划" :rightAction="rightAction"/>
 
     <div class="row q-col-gutter-md" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
@@ -113,6 +92,12 @@ const formState = reactive({
   name: '',
   description: ''
 });
+
+const rightAction = computed(() => [{
+  icon: 'download', label: '数据导出', action: handleExport
+}, {
+  icon: 'upload', label: '数据导入', action: handleImport
+}]);
 
 // 打开编辑弹窗
 function handleEdit(id: number) {
