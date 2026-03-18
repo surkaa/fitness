@@ -1,7 +1,6 @@
 import {invoke} from "@tauri-apps/api/core";
 import {Ref} from "vue";
 import {Exercise, ExerciseRecord, ExerciseStats, Routine} from "../types.ts";
-import {QVueGlobals} from "quasar";
 
 /**
  * CommandMap: 定义每个 Tauri 命令的参数和返回值
@@ -121,13 +120,11 @@ interface CommandMap {
  * @param cmd 下划线命令名
  * @param args 参数对象，小驼峰
  * @param loading 可选的 loading 状态引用
- * @param $q 可选的 Quasar 全局对象引用
  */
 export function invokeStrict<C extends keyof CommandMap>(
     cmd: C,
     args: CommandMap[C]["args"] = {},
-    loading?: Ref<boolean>,
-    $q?: QVueGlobals,
+    loading?: Ref<boolean>
 ): Promise<CommandMap[C]["result"]> {
     return new Promise((resolve, reject) => {
         if (loading) {
@@ -143,14 +140,6 @@ export function invokeStrict<C extends keyof CommandMap>(
                 resolve(res);
             })
             .catch((e) => {
-                if ($q) {
-                    console.log(`invoke ${cmd} error:`, e);
-                    $q.notify({
-                        type: 'negative',
-                        message: e instanceof Error ? e.message : String(e),
-                    });
-                }
-
                 if (typeof e === "string") reject(e);
                 else if (e instanceof Error) reject(e.message);
                 else reject(String(e));

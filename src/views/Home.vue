@@ -205,7 +205,7 @@ async function handleExport() {
     if (!filePath) return; // 用户取消了保存
 
     // 2. 向 Rust 请求数据库文件的完整字节
-    const dbBytes = await invokeStrict('get_db_bytes', {}, loading, $q);
+    const dbBytes = await invokeStrict('get_db_bytes', {}, loading);
 
     // 3. 使用前端的 FS 插件直接写入 (Tauri FS 插件已完美处理 Android 的写入权限和路径问题)
     await writeFile(filePath, new Uint8Array(dbBytes));
@@ -239,7 +239,7 @@ async function handleImport() {
       persistent: true
     }).onOk(async () => {
       try {
-        await invokeStrict('import_db_from_bytes', {bytes: Array.from(fileBytes)}, loading, $q);
+        await invokeStrict('import_db_from_bytes', {bytes: Array.from(fileBytes)}, loading);
 
         // 成功导入后直接重启应用以加载新数据
         $q.notify({type: 'positive', message: '恢复成功，应用即将重启'});
