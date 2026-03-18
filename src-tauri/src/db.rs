@@ -349,7 +349,7 @@ impl Database {
         // 提取非空值，去重，限制最多 6 个，并按数值排序（可选）
         let mut unique: Vec<i64> = reps
             .into_iter()
-            .filter_map(|r| r) // 过滤掉 None
+            .flatten() // 过滤掉 None
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
