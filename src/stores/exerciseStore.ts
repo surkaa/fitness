@@ -17,8 +17,8 @@ export const useExerciseStore = defineStore('exercise', () => {
         if (idStr in pendingFetches.value) {
             return pendingFetches.value[idStr];
         }
-        if (loadingStats.value[idStr]) {
-            // 如果正在加载但没有记录 promise，则等待一个短暂的时间（通常不会发生）
+        if (idStr in loadingStats.value && loadingStats.value[idStr] === true) {
+            // 如果正在加载但没有记录 promise，则等待一个短暂的时间
             await new Promise(resolve => setTimeout(resolve, 100));
             return stats.value[idStr];
         }
@@ -50,13 +50,6 @@ export const useExerciseStore = defineStore('exercise', () => {
     }
 
     /**
-     * 手动更新统计（例如本地修改后直接更新）
-     */
-    function setStats(exerciseId: number, stat: ExerciseStats) {
-        stats.value[String(exerciseId)] = stat;
-    }
-
-    /**
      * 删除统计（当动作被删除时调用）
      */
     function removeStats(exerciseId: number) {
@@ -65,22 +58,11 @@ export const useExerciseStore = defineStore('exercise', () => {
         delete pendingFetches.value[String(exerciseId)];
     }
 
-    /**
-     * 清空所有统计
-     */
-    function clearStats() {
-        stats.value = {};
-        loadingStats.value = {};
-        pendingFetches.value = {};
-    }
-
     return {
         stats: computed(() => stats.value),
         loadingStats,
         fetchForExercise,
         fetchForExercises,
-        setStats,
         removeStats,
-        clearStats,
     };
 });
