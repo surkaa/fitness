@@ -8,7 +8,7 @@ export default defineConfig(({mode}) => {
     const hmr = host ? {
         protocol: "ws",
         host,
-        port: 11421,
+        port: 5174,
     } : undefined;
     return {
         plugins: [
@@ -21,7 +21,7 @@ export default defineConfig(({mode}) => {
         ],
         clearScreen: false,
         server: {
-            port: 11420,
+            port: 5173,
             strictPort: true,
             host: host || false,
             hmr,
