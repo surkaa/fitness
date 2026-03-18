@@ -291,7 +291,7 @@ function quickInput(rep: number) {
 
 // 保存记录
 async function handleSaveRecord() {
-  if (!recordingExercise.value || !recordForm.weight) {
+  if (!recordingExercise.value || recordForm.weight === null || recordForm.weight === undefined) {
     $q.notify({type: 'warning', message: '请输入重量'});
     return;
   }

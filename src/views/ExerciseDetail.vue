@@ -258,7 +258,7 @@ function handleEditRecord(record: ExerciseRecord) {
 }
 
 async function handleUpdateRecord() {
-  if (!editingRecord.value || !editForm.weight) {
+  if (!editingRecord.value || editForm.weight === null || editForm.weight === undefined) {
     $q.notify({type: 'warning', message: '请输入重量'});
     return;
   }
