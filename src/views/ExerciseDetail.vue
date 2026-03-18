@@ -53,7 +53,7 @@
 
           <q-item-section>
             <q-item-label class="text-weight-bold text-subtitle1">
-              {{ record.weight }} <span class="text-caption text-grey-7">{{ unit }}</span>
+              {{ record.weight }} <span class="text-caption text-grey-7">{{ formatUnit(unit) }}</span>
             </q-item-label>
             <q-item-label caption>
               {{ formatRecordDate(record.createdAt) }}{{ record.reps ? ` · ${record.reps} 次` : '' }}

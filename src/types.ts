@@ -14,7 +14,6 @@ export interface Exercise {
     unit: string;
 }
 
-// 避免与ts中的Record类型冲突，改名为ExerciseRecord
 export interface ExerciseRecord {
     id: number;
     exerciseId: number;

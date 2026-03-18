@@ -2,7 +2,7 @@
 export const unitOptions = [
     {label: '公斤', value: 'kg'},
     {label: '磅', value: 'lb'},
-    {label: '片数', value: 'plate'},
+    {label: '片', value: 'plate'},
 ] as const;
 
 // 单位转义
