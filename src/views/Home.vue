@@ -114,12 +114,12 @@ function handleEdit(id: number) {
 
 // 统一保存入口 (创建/更新)
 async function handleSave() {
-  if (!formState.name || !editingId.value) return;
+  if (!formState.name) return;
 
   submitting.value = true;
   try {
     if (isEditing.value) {
-      await api.updateRoutine(editingId.value, formState.name, formState.description);
+      await api.updateRoutine(editingId.value!, formState.name, formState.description);
 
       // 更新本地列表
       const index = routines.value.findIndex(r => r.id === editingId.value);
@@ -148,6 +148,8 @@ async function handleSave() {
     showAddDialog.value = false;
   } catch (e) {
     $q.notify({type: 'negative', message: (isEditing.value ? '更新' : '创建') + '失败: ' + e});
+  } finally {
+    submitting.value = false;
   }
 }
 

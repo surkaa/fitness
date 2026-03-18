@@ -202,12 +202,12 @@ function handleEditExercise(id: number) {
 
 // 统一保存 (新增或更新)
 async function handleSave() {
-  if (!formState.name || !editingId.value) return;
+  if (!formState.name) return;
 
   submitting.value = true;
   try {
     if (isEditing.value) {
-      await api.updateExercise(editingId.value, formState.name, formState.sets, formState.reps, formState.note, formState.unit);
+      await api.updateExercise(editingId.value!, formState.name, formState.sets, formState.reps, formState.note, formState.unit);
 
       // 更新本地列表
       const index = exercises.value.findIndex(e => e.id === editingId.value);
