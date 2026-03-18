@@ -6,17 +6,19 @@ mod db;
 
 /// 获取所有轮次
 #[tauri::command]
+#[specta::specta]
 async fn get_routines(state: State<'_, db::Database>) -> Result<Vec<db::Routine>, String> {
     state.get_routines().await.map_err(|e| e.to_string())
 }
 
 /// 创建轮次
 #[tauri::command]
+#[specta::specta]
 async fn create_routine(
     state: State<'_, db::Database>,
     name: String,
     desc: String,
-) -> Result<i64, String> {
+) -> Result<i32, String> {
     state
         .create_routine(&name, &desc)
         .await
@@ -25,7 +27,8 @@ async fn create_routine(
 
 /// 删除轮次
 #[tauri::command]
-async fn delete_routine(state: State<'_, db::Database>, routine_id: i64) -> Result<(), String> {
+#[specta::specta]
+async fn delete_routine(state: State<'_, db::Database>, routine_id: i32) -> Result<(), String> {
     state
         .delete_routine(routine_id)
         .await
@@ -34,9 +37,10 @@ async fn delete_routine(state: State<'_, db::Database>, routine_id: i64) -> Resu
 
 /// 更新轮次
 #[tauri::command]
+#[specta::specta]
 async fn update_routine(
     state: State<'_, db::Database>,
-    routine_id: i64,
+    routine_id: i32,
     name: String,
     desc: String,
 ) -> Result<(), String> {
@@ -48,9 +52,10 @@ async fn update_routine(
 
 /// 获取轮次下的动作
 #[tauri::command]
+#[specta::specta]
 async fn get_exercises(
     state: State<'_, db::Database>,
-    routine_id: i64,
+    routine_id: i32,
 ) -> Result<Vec<db::Exercise>, String> {
     state
         .get_exercises(routine_id)
@@ -60,15 +65,16 @@ async fn get_exercises(
 
 /// 添加动作
 #[tauri::command]
+#[specta::specta]
 async fn add_exercise(
     state: State<'_, db::Database>,
-    routine_id: i64,
+    routine_id: i32,
     name: String,
-    sets: i64,
+    sets: i32,
     reps: String,
     note: String,
     unit: String,
-) -> Result<i64, String> {
+) -> Result<i32, String> {
     state
         .add_exercise(routine_id, &name, sets, &reps, &note, &unit)
         .await
@@ -77,7 +83,8 @@ async fn add_exercise(
 
 /// 删除动作
 #[tauri::command]
-async fn delete_exercise(state: State<'_, db::Database>, exercise_id: i64) -> Result<(), String> {
+#[specta::specta]
+async fn delete_exercise(state: State<'_, db::Database>, exercise_id: i32) -> Result<(), String> {
     state
         .delete_exercise(exercise_id)
         .await
@@ -86,11 +93,12 @@ async fn delete_exercise(state: State<'_, db::Database>, exercise_id: i64) -> Re
 
 /// 更新动作
 #[tauri::command]
+#[specta::specta]
 async fn update_exercise(
     state: State<'_, db::Database>,
-    exercise_id: i64,
+    exercise_id: i32,
     name: String,
-    sets: i64,
+    sets: i32,
     reps: String,
     note: String,
     unit: String,
@@ -103,12 +111,13 @@ async fn update_exercise(
 
 /// 记录一次最大重量
 #[tauri::command]
+#[specta::specta]
 async fn add_record(
     state: State<'_, db::Database>,
-    exercise_id: i64,
+    exercise_id: i32,
     weight: f64,
-    reps: Option<i64>,
-) -> Result<i64, String> {
+    reps: Option<i32>,
+) -> Result<i32, String> {
     state
         .add_record(exercise_id, weight, reps)
         .await
@@ -117,7 +126,8 @@ async fn add_record(
 
 /// 删除记录
 #[tauri::command]
-async fn delete_record(state: State<'_, db::Database>, record_id: i64) -> Result<(), String> {
+#[specta::specta]
+async fn delete_record(state: State<'_, db::Database>, record_id: i32) -> Result<(), String> {
     state
         .delete_record(record_id)
         .await
@@ -126,9 +136,10 @@ async fn delete_record(state: State<'_, db::Database>, record_id: i64) -> Result
 
 /// 分页获取记录
 #[tauri::command]
+#[specta::specta]
 async fn get_all_records(
     state: State<'_, db::Database>,
-    exercise_id: i64,
+    exercise_id: i32,
 ) -> Result<Vec<db::Record>, String> {
     state
         .get_all_records(exercise_id)
@@ -138,11 +149,12 @@ async fn get_all_records(
 
 /// 更新记录
 #[tauri::command]
+#[specta::specta]
 async fn update_record(
     state: State<'_, db::Database>,
-    record_id: i64,
+    record_id: i32,
     weight: f64,
-    reps: Option<i64>,
+    reps: Option<i32>,
 ) -> Result<(), String> {
     state
         .update_record(record_id, weight, reps)
@@ -152,9 +164,10 @@ async fn update_record(
 
 /// 获取单个动作的统计信息
 #[tauri::command]
+#[specta::specta]
 async fn get_exercise_stats(
     state: State<'_, db::Database>,
-    exercise_id: i64,
+    exercise_id: i32,
 ) -> Result<db::ExerciseStats, String> {
     state
         .get_exercise_stats(exercise_id)
@@ -164,10 +177,11 @@ async fn get_exercise_stats(
 
 /// 获取某个动作的常用次数列表
 #[tauri::command]
+#[specta::specta]
 async fn get_common_reps(
     state: State<'_, db::Database>,
-    exercise_id: i64,
-) -> Result<Vec<i64>, String> {
+    exercise_id: i32,
+) -> Result<Vec<i32>, String> {
     state
         .get_common_reps(exercise_id)
         .await
@@ -175,12 +189,14 @@ async fn get_common_reps(
 }
 
 #[tauri::command]
+#[specta::specta]
 async fn get_db_bytes(state: State<'_, db::Database>) -> Result<Vec<u8>, String> {
     let source = state.get_db_path();
     fs::read(source).map_err(|e| format!("读取数据库文件失败: {}", e))
 }
 
 #[tauri::command]
+#[specta::specta]
 async fn import_db_from_bytes(
     state: State<'_, db::Database>,
     bytes: Vec<u8>,
@@ -199,37 +215,14 @@ async fn import_db_from_bytes(
 }
 
 #[tauri::command]
+#[specta::specta]
 async fn restart_app(app_handle: AppHandle) {
     app_handle.restart();
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(tauri_plugin_log::log::LevelFilter::Info)
-                .build(),
-        )
-        .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
-            let app_data_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
-            let app_data_dir_str = app_data_dir.to_str().expect("路径转换失败");
-
-            info!("数据库路径: {}", app_data_dir_str);
-
-            // 初始化数据库
-            let db =
-                tauri::async_runtime::block_on(async { db::Database::new(app_data_dir_str).await })
-                    .expect("数据库初始化失败");
-
-            app.manage(db);
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
+fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+    let builder =
+        tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
             get_routines,
             create_routine,
             delete_routine,
@@ -247,7 +240,51 @@ pub fn run() {
             import_db_from_bytes,
             restart_app,
             get_common_reps
-        ])
+        ]);
+
+    #[cfg(debug_assertions)]
+    #[cfg(windows)]
+    builder
+        .export(
+            specta_typescript::Typescript::default()
+                .header("// @ts-nocheck\n/* eslint-disable */\n"),
+            "../src/bindings.ts",
+        )
+        .expect("Failed to export typescript bindings");
+
+    builder
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let builder = generate_specta_builder();
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(tauri_plugin_log::log::LevelFilter::Info)
+                .build(),
+        )
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(builder.invoke_handler())
+        .setup(move |app| {
+            let app_data_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
+            let app_data_dir_str = app_data_dir.to_str().expect("路径转换失败");
+
+            info!("数据库路径: {}", app_data_dir_str);
+
+            // 初始化数据库
+            let db =
+                tauri::async_runtime::block_on(async { db::Database::new(app_data_dir_str).await })
+                    .expect("数据库初始化失败");
+
+            app.manage(db);
+            builder.mount_events(app);
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import {Routine} from "../types";
+import {Routine} from "../bindings.ts";
 
 defineProps<{
   routine: Routine

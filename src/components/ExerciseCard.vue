@@ -86,10 +86,10 @@
 </template>
 
 <script setup lang="ts">
-import type {Exercise} from '../types';
 import {formatUnit} from '../utils/unitConvert';
 import {formatRecordDate} from '../utils/format';
 import {useExerciseStore} from "../stores/exerciseStore.ts";
+import {Exercise} from "../bindings.ts";
 
 defineProps<{
   exercise: Exercise;

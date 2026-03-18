@@ -5,10 +5,10 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 
 // 轮次 (比如: "一轮次: 胸肩")
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Routine {
-    pub id: i64,
+    pub id: i32,
     /// 轮次名称
     pub name: String,
     /// 可选描述
@@ -16,15 +16,15 @@ pub struct Routine {
 }
 
 // 动作 (比如: "杠铃卧推", 包含单位配置)
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Exercise {
-    pub id: i64,
-    pub routine_id: i64,
+    pub id: i32,
+    pub routine_id: i32,
     /// 动作名称
     pub name: String,
     /// 计划做几组
-    pub target_sets: i64,
+    pub target_sets: i32,
     /// 计划做几个 (用String是为了支持 "8-12" 这种写法)
     pub target_reps: String,
     /// 详细描述 (离心要慢...)
@@ -34,27 +34,29 @@ pub struct Exercise {
 }
 
 // 记录 (具体每一次的重量)
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
-    pub id: i64,
-    pub exercise_id: i64,
+    pub id: i32,
+    pub exercise_id: i32,
     /// 记录时间
     #[serde(with = "chrono::serde::ts_milliseconds")]
+    #[specta(type = f64)]
     pub created_at: DateTime<Utc>,
     /// 重量 (数值，配合Exercise里的unit使用)
     pub weight: f64,
     /// 实际做了几个
-    pub reps: Option<i64>,
+    pub reps: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ExerciseStats {
-    pub exercise_id: i64,
-    pub total_records: i64,
+    pub exercise_id: i32,
+    pub total_records: i32,
     pub max_weight: Option<f64>,
     #[serde(with = "chrono::serde::ts_milliseconds_option")]
+    #[specta(type = f64)]
     pub last_date: Option<DateTime<Utc>>,
 }
 
@@ -148,18 +150,18 @@ impl Database {
     }
 
     /// 创建轮次
-    pub async fn create_routine(&self, name: &str, desc: &str) -> Result<i64, sqlx::Error> {
+    pub async fn create_routine(&self, name: &str, desc: &str) -> Result<i32, sqlx::Error> {
         let id = sqlx::query("INSERT INTO routines (name, description) VALUES (?, ?)")
             .bind(name)
             .bind(desc)
             .execute(&self.pool)
             .await?
             .last_insert_rowid();
-        Ok(id)
+        Ok(id as i32)
     }
 
     /// 删除轮次
-    pub async fn delete_routine(&self, routine_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete_routine(&self, routine_id: i32) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM routines WHERE id = ?")
             .bind(routine_id)
             .execute(&self.pool)
@@ -170,7 +172,7 @@ impl Database {
     /// 更新轮次
     pub async fn update_routine(
         &self,
-        routine_id: i64,
+        routine_id: i32,
         name: &str,
         desc: &str,
     ) -> Result<(), sqlx::Error> {
@@ -184,7 +186,7 @@ impl Database {
     }
 
     /// 获取某个轮次下的所有动作
-    pub async fn get_exercises(&self, routine_id: i64) -> Result<Vec<Exercise>, sqlx::Error> {
+    pub async fn get_exercises(&self, routine_id: i32) -> Result<Vec<Exercise>, sqlx::Error> {
         sqlx::query_as::<_, Exercise>("SELECT * FROM exercises WHERE routine_id = ? ORDER BY id")
             .bind(routine_id)
             .fetch_all(&self.pool)
@@ -194,13 +196,13 @@ impl Database {
     /// 添加动作
     pub async fn add_exercise(
         &self,
-        routine_id: i64,
+        routine_id: i32,
         name: &str,
-        sets: i64,
+        sets: i32,
         reps: &str,
         note: &str,
         unit: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i32, sqlx::Error> {
         let id = sqlx::query(
             "INSERT INTO exercises (routine_id, name, target_sets, target_reps, note, unit)
              VALUES (?, ?, ?, ?, ?, ?)",
@@ -214,11 +216,11 @@ impl Database {
         .execute(&self.pool)
         .await?
         .last_insert_rowid();
-        Ok(id)
+        Ok(id as i32)
     }
 
     /// 删除动作
-    pub async fn delete_exercise(&self, exercise_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete_exercise(&self, exercise_id: i32) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM exercises WHERE id = ?")
             .bind(exercise_id)
             .execute(&self.pool)
@@ -229,9 +231,9 @@ impl Database {
     /// 更新动作
     pub async fn update_exercise(
         &self,
-        exercise_id: i64,
+        exercise_id: i32,
         name: &str,
-        sets: i64,
+        sets: i32,
         reps: &str,
         note: &str,
         unit: &str,
@@ -253,10 +255,10 @@ impl Database {
     /// 记录一次数据
     pub async fn add_record(
         &self,
-        exercise_id: i64,
+        exercise_id: i32,
         weight: f64,
-        reps: Option<i64>,
-    ) -> Result<i64, sqlx::Error> {
+        reps: Option<i32>,
+    ) -> Result<i32, sqlx::Error> {
         let id = sqlx::query("INSERT INTO records (exercise_id, weight, reps) VALUES (?, ?, ?)")
             .bind(exercise_id)
             .bind(weight)
@@ -264,11 +266,11 @@ impl Database {
             .execute(&self.pool)
             .await?
             .last_insert_rowid();
-        Ok(id)
+        Ok(id as i32)
     }
 
     /// 删除一条记录
-    pub async fn delete_record(&self, record_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete_record(&self, record_id: i32) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM records WHERE id = ?")
             .bind(record_id)
             .execute(&self.pool)
@@ -277,7 +279,7 @@ impl Database {
     }
 
     /// 分页获取某个动作的记录
-    pub async fn get_all_records(&self, exercise_id: i64) -> Result<Vec<Record>, sqlx::Error> {
+    pub async fn get_all_records(&self, exercise_id: i32) -> Result<Vec<Record>, sqlx::Error> {
         sqlx::query_as::<_, Record>(
             "SELECT * FROM records WHERE exercise_id = ? ORDER BY created_at DESC, id DESC",
         )
@@ -289,9 +291,9 @@ impl Database {
     /// 更新记录
     pub async fn update_record(
         &self,
-        record_id: i64,
+        record_id: i32,
         weight: f64,
-        reps: Option<i64>,
+        reps: Option<i32>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE records SET weight = ?, reps = ? WHERE id = ?")
             .bind(weight)
@@ -303,9 +305,9 @@ impl Database {
     }
 
     /// 获取单个动作的统计信息
-    pub async fn get_exercise_stats(&self, exercise_id: i64) -> Result<ExerciseStats, sqlx::Error> {
+    pub async fn get_exercise_stats(&self, exercise_id: i32) -> Result<ExerciseStats, sqlx::Error> {
         // 总记录数
-        let (total_records,): (i64,) =
+        let (total_records,): (i32,) =
             sqlx::query_as("SELECT COUNT(*) FROM records WHERE exercise_id = ?")
                 .bind(exercise_id)
                 .fetch_one(&self.pool)
@@ -337,10 +339,10 @@ impl Database {
     }
 
     /// 获取某个动作的常用 reps 值（最近 N 条记录中非空的、去重后的 reps）
-    pub async fn get_common_reps(&self, exercise_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+    pub async fn get_common_reps(&self, exercise_id: i32) -> Result<Vec<i32>, sqlx::Error> {
         // 查询最近 50 条记录中非空的 reps，按出现频率降序，取前 5 个不同的值
         // 也可以简单地取所有不重复的 reps（限制数量）
-        let reps = sqlx::query_scalar::<_, Option<i64>>(
+        let reps = sqlx::query_scalar::<_, Option<i32>>(
             "SELECT reps FROM records
              WHERE exercise_id = ? AND reps IS NOT NULL
              ORDER BY created_at DESC LIMIT 50",
@@ -350,7 +352,7 @@ impl Database {
         .await?;
 
         // 提取非空值，去重，限制最多 6 个，并按数值排序（可选）
-        let mut unique: Vec<i64> = reps
+        let mut unique: Vec<i32> = reps
             .into_iter()
             .flatten() // 过滤掉 None
             .collect::<std::collections::HashSet<_>>()

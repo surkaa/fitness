@@ -123,12 +123,12 @@
 import {computed, onMounted, reactive, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useQuasar} from 'quasar';
-import {invokeStrict} from '../utils/invokeStrict';
-import type {Exercise} from '../types';
 import ExerciseCard from '../components/ExerciseCard.vue';
 import {formatUnit, unitOptions} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
 import Header from "../components/Header.vue";
+import {Exercise} from "../bindings.ts";
+import api from "../utils/api.ts";
 
 const route = useRoute();
 const router = useRouter();
@@ -169,8 +169,9 @@ const commonReps = ref<number[]>([]);
 
 // 加载列表
 async function loadData() {
+  loading.value = true;
   try {
-    exercises.value = await invokeStrict('get_exercises', {routineId}, loading);
+    exercises.value = await api.getExercises(routineId);
     // 批量获取统计
     const ids = exercises.value.map(e => e.id);
     if (ids.length) {
@@ -178,6 +179,8 @@ async function loadData() {
     }
   } catch (e) {
     $q.notify({type: 'negative', message: String(e)});
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -199,18 +202,12 @@ function handleEditExercise(id: number) {
 
 // 统一保存 (新增或更新)
 async function handleSave() {
-  if (!formState.name) return;
+  if (!formState.name || !editingId.value) return;
 
+  submitting.value = true;
   try {
     if (isEditing.value) {
-      await invokeStrict('update_exercise', {
-        exerciseId: editingId.value!,
-        name: formState.name,
-        sets: formState.sets,
-        reps: formState.reps,
-        note: formState.note,
-        unit: formState.unit
-      }, submitting);
+      await api.updateExercise(editingId.value, formState.name, formState.sets, formState.reps, formState.note, formState.unit);
 
       // 更新本地列表
       const index = exercises.value.findIndex(e => e.id === editingId.value);
@@ -223,10 +220,7 @@ async function handleSave() {
       $q.notify({type: 'positive', message: '动作已更新'});
 
     } else {
-      await invokeStrict('add_exercise', {
-        routineId,
-        ...formState
-      }, submitting);
+      await api.addExercise(routineId, formState.name, formState.sets, formState.reps, formState.note, formState.unit);
 
       $q.notify({type: 'positive', message: '动作添加成功'});
       await loadData();
@@ -235,6 +229,8 @@ async function handleSave() {
     showAddDialog.value = false;
   } catch (e) {
     $q.notify({type: 'negative', message: (isEditing.value ? '更新' : '添加') + '失败: ' + e});
+  } finally {
+    submitting.value = false;
   }
 }
 
@@ -256,7 +252,7 @@ function handleDeleteExercise(id: number) {
     cancel: true
   }).onOk(async () => {
     try {
-      await invokeStrict('delete_exercise', {exerciseId: id});
+      await api.deleteExercise(id);
       exercises.value = exercises.value.filter(e => e.id !== id);
       exerciseStore.removeStats(id);
       $q.notify('动作已删除');
@@ -274,7 +270,7 @@ async function openRecordDialog(exercise: Exercise) {
   showRecordDialog.value = true;
 
   try {
-    commonReps.value = await invokeStrict('get_common_reps', {exerciseId: exercise.id});
+    commonReps.value = await api.getCommonReps(exercise.id);
   } catch (e) {
     console.warn('获取常用次数失败', e);
     commonReps.value = [];
@@ -296,18 +292,17 @@ async function handleSaveRecord() {
     return;
   }
 
+  submitting.value = true;
   try {
-    await invokeStrict('add_record', {
-      exerciseId: recordingExercise.value.id,
-      weight: Number(recordForm.weight),
-      reps: recordForm.reps ? Number(recordForm.reps) : null
-    }, submitting);
+    await api.addRecord(recordingExercise.value.id, recordForm.weight, recordForm.reps);
 
     $q.notify({type: 'positive', message: `记录成功: ${recordForm.weight} ${recordingExercise.value.unit}`});
     showRecordDialog.value = false;
     await exerciseStore.fetchForExercise(recordingExercise.value.id);
   } catch (e) {
     $q.notify({type: 'negative', message: '记录失败: ' + e});
+  } finally {
+    submitting.value = false;
   }
 }
 

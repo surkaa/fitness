@@ -3,35 +3,3 @@ export interface HeaderRightAction {
     label: string;
     action: () => void;
 }
-
-
-export interface Routine {
-    id: number;
-    name: string;
-    description: string | null;
-}
-
-export interface Exercise {
-    id: number;
-    routineId: number;
-    name: string;
-    targetSets: number;
-    targetReps: string;
-    note: string | null;
-    unit: string;
-}
-
-export interface ExerciseRecord {
-    id: number;
-    exerciseId: number;
-    createdAt: number;
-    weight: number;
-    reps: number | null;
-}
-
-export interface ExerciseStats {
-    exerciseId: number;
-    totalRecords: number;
-    maxWeight: number | null;
-    lastDate: number;
-}

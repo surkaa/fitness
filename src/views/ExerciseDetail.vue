@@ -103,19 +103,19 @@
 import {computed, onMounted, reactive, ref} from 'vue';
 import {useRoute} from 'vue-router';
 import {date, useQuasar} from 'quasar';
-import {invokeStrict} from '../utils/invokeStrict';
 
 import VChart from 'vue-echarts';
 import {use} from 'echarts/core';
 import {CanvasRenderer} from 'echarts/renderers';
 import {LineChart} from 'echarts/charts';
 import {DataZoomComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
-import {ExerciseRecord} from "../types.ts";
 import {formatNumber, formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
 import {useStorage} from '@vueuse/core';
 import Header from "../components/Header.vue";
+import api from "../utils/api.ts";
+import {Record} from "../bindings.ts";
 
 use([
   CanvasRenderer,
@@ -141,12 +141,12 @@ const invertedExercises = useStorage<number[]>('inverted_exercise_ids', []);
 // 判断当前动作是否是越低越好
 const isInverted = computed(() => invertedExercises.value.includes(exerciseId));
 
-const records = ref<ExerciseRecord[]>([]);
+const records = ref<Record[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
 
 const showEditDialog = ref(false);
-const editingRecord = ref<ExerciseRecord | null>(null);
+const editingRecord = ref<Record | null>(null);
 const editForm = reactive({
   weight: null as number | null,
   reps: null as number | null
@@ -224,10 +224,13 @@ const rightAction = computed(() => [{
 }]);
 
 async function loadHistory() {
+  loading.value = true;
   try {
-    records.value = await invokeStrict('get_all_records', {exerciseId}, loading);
+    records.value = await api.getAllRecords(exerciseId);
   } catch (e) {
     $q.notify({type: 'negative', message: '获取历史记录失败: ' + e});
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -239,7 +242,7 @@ function handleDelete(recordId: number) {
     persistent: true
   }).onOk(async () => {
     try {
-      await invokeStrict('delete_record', {recordId});
+      await api.deleteRecord(recordId);
       // 从本地列表中移除
       records.value = records.value.filter(r => r.id !== recordId);
       await exerciseStore.fetchForExercise(exerciseId);  // 刷新统计
@@ -250,7 +253,7 @@ function handleDelete(recordId: number) {
   });
 }
 
-function handleEditRecord(record: ExerciseRecord) {
+function handleEditRecord(record: Record) {
   editingRecord.value = record;
   editForm.weight = record.weight;
   editForm.reps = record.reps;
@@ -262,12 +265,9 @@ async function handleUpdateRecord() {
     $q.notify({type: 'warning', message: '请输入重量'});
     return;
   }
+  submitting.value = true;
   try {
-    await invokeStrict('update_record', {
-      recordId: editingRecord.value.id,
-      weight: Number(editForm.weight),
-      reps: editForm.reps ? Number(editForm.reps) : null
-    }, submitting);
+    await api.updateRecord(editingRecord.value.id, editForm.weight, editForm.reps)
 
     // 本地更新记录
     const index = records.value.findIndex(r => r.id === editingRecord.value!.id);
@@ -286,6 +286,8 @@ async function handleUpdateRecord() {
     showEditDialog.value = false;
   } catch (e) {
     $q.notify({type: 'negative', message: '更新失败: ' + e});
+  } finally {
+    submitting.value = false;
   }
 }
 

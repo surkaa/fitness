@@ -1,7 +1,7 @@
 import {defineStore} from 'pinia';
 import {computed, ref} from 'vue';
-import {invokeStrict} from '../utils/invokeStrict';
-import type {ExerciseStats} from '../types';
+import api from "../utils/api.ts";
+import {ExerciseStats} from "../bindings.ts";
 
 export const useExerciseStore = defineStore('exercise', () => {
     const stats = ref<Record<string, ExerciseStats>>({});          // 键为 exerciseId 的字符串形式
@@ -26,7 +26,7 @@ export const useExerciseStore = defineStore('exercise', () => {
         loadingStats.value[idStr] = true;
         const promise = (async () => {
             try {
-                const stat = await invokeStrict('get_exercise_stats', {exerciseId});
+                const stat = await api.getExerciseStats(exerciseId);
                 stats.value[idStr] = stat;
                 return stat;
             } catch (e) {

@@ -68,13 +68,13 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue';
 import RoutineCard from '../components/RoutineCard.vue';
-import type {Routine} from '../types';
 import {useRouter} from "vue-router";
 import {useQuasar} from "quasar";
-import {invokeStrict} from "../utils/invokeStrict.ts";
 import {open, save} from '@tauri-apps/plugin-dialog';
 import {readFile, writeFile} from '@tauri-apps/plugin-fs';
 import Header from "../components/Header.vue";
+import {Routine} from "../bindings.ts";
+import api from "../utils/api.ts";
 
 const router = useRouter();
 const $q = useQuasar();
@@ -114,15 +114,12 @@ function handleEdit(id: number) {
 
 // 统一保存入口 (创建/更新)
 async function handleSave() {
-  if (!formState.name) return;
+  if (!formState.name || !editingId.value) return;
 
+  submitting.value = true;
   try {
     if (isEditing.value) {
-      await invokeStrict('update_routine', {
-        routineId: editingId.value!,
-        name: formState.name,
-        desc: formState.description || ''
-      }, submitting);
+      await api.updateRoutine(editingId.value, formState.name, formState.description);
 
       // 更新本地列表
       const index = routines.value.findIndex(r => r.id === editingId.value);
@@ -137,10 +134,7 @@ async function handleSave() {
       $q.notify({type: 'positive', message: '计划已更新'});
 
     } else {
-      const newId = await invokeStrict('create_routine', {
-        name: formState.name,
-        desc: formState.description || ''
-      }, submitting);
+      const newId = await api.createRoutine(formState.name, formState.description);
 
       routines.value.push({
         id: newId,
@@ -181,21 +175,20 @@ function handleDelete(id: number) {
     message: '确定要删除该计划吗？此操作不可撤销。',
     cancel: true
   }).onOk(() => {
-    invokeStrict('delete_routine', {
-      routineId: id
-    }).then(() => {
+    api.deleteRoutine(id).then(() => {
       routines.value = routines.value.filter(r => r.id !== id);
       $q.notify({
         type: 'positive',
         message: '计划已删除'
       });
-    });
-  })
+    })
+  });
 }
 
 async function handleExport() {
+  loading.value = true;
   try {
-    // 1. 调用系统原生的保存对话框（Android 下会唤起 SAF 文件选择器）
+    // 调用系统原生的保存对话框
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = await save({
       defaultPath: `fitness_backup_${timestamp}.db`,
@@ -204,10 +197,10 @@ async function handleExport() {
 
     if (!filePath) return; // 用户取消了保存
 
-    // 2. 向 Rust 请求数据库文件的完整字节
-    const dbBytes = await invokeStrict('get_db_bytes', {}, loading);
+    // 向 Rust 请求数据库文件的完整字节
+    const dbBytes = await api.getDbBytes();
 
-    // 3. 使用前端的 FS 插件直接写入 (Tauri FS 插件已完美处理 Android 的写入权限和路径问题)
+    // 使用前端的 FS 插件直接写入
     await writeFile(filePath, new Uint8Array(dbBytes));
 
     $q.notify({
@@ -217,6 +210,8 @@ async function handleExport() {
     });
   } catch (e) {
     $q.notify({type: 'negative', message: '导出失败: ' + e});
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -238,15 +233,18 @@ async function handleImport() {
       cancel: true,
       persistent: true
     }).onOk(async () => {
+      loading.value = true;
       try {
-        await invokeStrict('import_db_from_bytes', {bytes: Array.from(fileBytes)}, loading);
+        await api.importDbFromBytes(fileBytes);
 
         // 成功导入后直接重启应用以加载新数据
         $q.notify({type: 'positive', message: '恢复成功，应用即将重启'});
 
-        setTimeout(() => invokeStrict('restart_app'), 1500);
+        setTimeout(() => api.restartApp(), 1500);
       } catch (e) {
         $q.notify({type: 'negative', message: '恢复失败: ' + e});
+      } finally {
+        loading.value = false;
       }
     });
   } catch (e) {
@@ -256,8 +254,9 @@ async function handleImport() {
 
 
 onMounted(() => {
-  invokeStrict('get_routines', {}, loading).then(list => {
+  loading.value = true;
+  api.getRoutines().then(list => {
     routines.value = list;
-  });
+  }).finally(() => loading.value = false);
 })
 </script>
