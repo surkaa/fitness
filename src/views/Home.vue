@@ -4,18 +4,18 @@
       <template #right>
         <q-btn flat round icon="more_vert">
           <q-menu>
-            <q-list>
+            <q-list style="min-width: 150px">
               <q-item clickable v-close-popup @click="handleExport">
                 <q-item-section avatar>
                   <q-icon name="download" />
                 </q-item-section>
-                <q-item-section>导出</q-item-section>
+                <q-item-section>数据导出</q-item-section>
               </q-item>
               <q-item clickable v-close-popup @click="handleImport">
                 <q-item-section avatar>
                   <q-icon name="upload" />
                 </q-item-section>
-                <q-item-section>导入</q-item-section>
+                <q-item-section>数据导入</q-item-section>
               </q-item>
             </q-list>
           </q-menu>
