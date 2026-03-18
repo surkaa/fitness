@@ -234,23 +234,17 @@ async function handleImport() {
 
     $q.dialog({
       title: '确认恢复',
-      message: '恢复将覆盖当前所有数据，且需要重启应用。确定继续？',
+      message: '恢复将覆盖当前所有数据，且会自动重启应用。确定继续？',
       cancel: true,
       persistent: true
     }).onOk(async () => {
       try {
         await invokeStrict('import_db_from_bytes', {bytes: Array.from(fileBytes)}, loading, $q);
 
-        $q.notify({
-          type: 'positive',
-          message: '恢复成功，点击重启立即生效',
-          timeout: 0,
-          actions: [{
-            label: '立即重启',
-            color: 'white',
-            handler: async () => await invokeStrict('restart_app')
-          }]
-        });
+        // 成功导入后直接重启应用以加载新数据
+        $q.notify({type: 'positive', message: '恢复成功，应用即将重启'});
+
+        setTimeout(() => invokeStrict('restart_app'), 1500);
       } catch (e) {
         $q.notify({type: 'negative', message: '恢复失败: ' + e});
       }
