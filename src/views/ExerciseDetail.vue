@@ -96,6 +96,14 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <RecordDialog
+        v-model="showRecordDialog"
+        :exercise-id="exerciseId"
+        :exercise-name="exerciseName"
+        :unit="unit"
+        @success="loadHistory"
+    />
   </q-page>
 </template>
 
@@ -116,6 +124,7 @@ import {useStorage} from '@vueuse/core';
 import Header from "../components/Header.vue";
 import api from "../utils/api.ts";
 import {Record} from "../bindings.ts";
+import RecordDialog from "../components/RecordDialog.vue";
 
 use([
   CanvasRenderer,
@@ -151,6 +160,7 @@ const editForm = reactive({
   weight: null as number | null,
   reps: null as number | null
 });
+const showRecordDialog = ref(false);
 
 const dailyAveraged = computed(() => {
   const map = new Map<string, { total: number; count: number }>();
@@ -221,6 +231,10 @@ const rightAction = computed(() => [{
   label: isInverted ? '设为越高越好' : '设为越低越好',
   icon: isInverted ? 'trending_up' : 'trending_down',
   action: toggleInvert
+}, {
+  label: '新增记录',
+  icon: 'add',
+  action: () => showRecordDialog.value = true,
 }]);
 
 async function loadHistory() {

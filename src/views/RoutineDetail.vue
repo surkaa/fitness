@@ -69,54 +69,14 @@
     </q-card>
   </q-dialog>
 
-  <q-dialog v-model="showRecordDialog">
-    <q-card style="min-width: 300px">
-      <q-card-section>
-        <div class="text-h6">{{ recordingExercise?.name }}</div>
-        <div class="text-caption text-grey">
-          {{ recordingExercise?.note || '记录数据，一天允许记录多次，动作详图表会按天取平均' }}
-        </div>
-      </q-card-section>
-
-      <q-card-section class="q-pt-none">
-        <q-input
-            filled
-            type="number"
-            v-model.number="recordForm.weight"
-            label="重量"
-            :suffix="formatUnit(recordingExercise?.unit || '')"
-            autofocus
-        />
-        <q-input
-            class="q-mt-sm"
-            filled
-            type="number"
-            v-model.number="recordForm.reps"
-            label="实际完成次数 (可选)"
-            placeholder="默认留空"
-            @keyup.enter="handleSaveRecord"
-        />
-        <!-- 候选按钮，仅在 commonReps 有值时显示 -->
-        <div v-if="commonReps.length" class="row q-mt-xs q-gutter-xs">
-          <q-btn
-              v-for="rep in commonReps"
-              :key="rep"
-              dense
-              flat
-              color="primary"
-              :label="rep + '次'"
-              size="sm"
-              @click="quickInput(rep)"
-          />
-        </div>
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn flat label="取消" color="primary" v-close-popup/>
-        <q-btn flat label="确认记录" color="primary" @click="handleSaveRecord" :loading="submitting"/>
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+  <RecordDialog
+      v-model="showRecordDialog"
+      :exercise-id="recordingExercise?.id ?? 0"
+      :exercise-name="recordingExercise?.name ?? ''"
+      :unit="recordingExercise?.unit ?? 'kg'"
+      :exercise-note="recordingExercise?.note"
+      @success="loadData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -124,11 +84,12 @@ import {computed, onMounted, reactive, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useQuasar} from 'quasar';
 import ExerciseCard from '../components/ExerciseCard.vue';
-import {formatUnit, unitOptions} from "../utils/unitConvert.ts";
+import {unitOptions} from "../utils/unitConvert.ts";
 import {useExerciseStore} from "../stores/exerciseStore.ts";
 import Header from "../components/Header.vue";
 import {Exercise} from "../bindings.ts";
 import api from "../utils/api.ts";
+import RecordDialog from "../components/RecordDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -159,14 +120,6 @@ const formState = reactive({
 
 // 记录表单数据
 const recordingExercise = ref<Exercise | null>(null);
-const recordForm = reactive({
-  weight: null as number | null,
-  reps: null as number | null
-});
-
-// 常用次数列表
-const commonReps = ref<number[]>([]);
-
 // 加载列表
 async function loadData() {
   loading.value = true;
@@ -264,46 +217,8 @@ function handleDeleteExercise(id: number) {
 
 // 打开记录弹窗时获取常用次数
 async function openRecordDialog(exercise: Exercise) {
-  recordingExercise.value = exercise;
-  recordForm.weight = null;
-  recordForm.reps = null;
-  showRecordDialog.value = true;
-
-  try {
-    commonReps.value = await api.getCommonReps(exercise.id);
-  } catch (e) {
-    console.warn('获取常用次数失败', e);
-    commonReps.value = [];
-  }
-}
-
-function quickInput(rep: number) {
-  recordForm.reps = rep;
-  if (recordForm.weight) {
-    // 自动提交
-    handleSaveRecord();
-  }
-}
-
-// 保存记录
-async function handleSaveRecord() {
-  if (!recordingExercise.value || recordForm.weight === null || recordForm.weight === undefined) {
-    $q.notify({type: 'warning', message: '请输入重量'});
-    return;
-  }
-
-  submitting.value = true;
-  try {
-    await api.addRecord(recordingExercise.value.id, recordForm.weight, recordForm.reps);
-
-    $q.notify({type: 'positive', message: `记录成功: ${recordForm.weight} ${recordingExercise.value.unit}`});
-    showRecordDialog.value = false;
-    await exerciseStore.fetchForExercise(recordingExercise.value.id);
-  } catch (e) {
-    $q.notify({type: 'negative', message: '记录失败: ' + e});
-  } finally {
-    submitting.value = false;
-  }
+  recordingExercise.value = exercise
+  showRecordDialog.value = true
 }
 
 // 跳转详情
