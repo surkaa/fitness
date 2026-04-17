@@ -179,6 +179,14 @@ async getCommonReps(exerciseId: number) : Promise<Result<number[], string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async transformRecords(exerciseId: number, isAdd: boolean, a: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("transform_records", { exerciseId, isAdd, a }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

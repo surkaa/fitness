@@ -220,6 +220,19 @@ async fn restart_app(app_handle: AppHandle) {
     app_handle.restart();
 }
 
+#[tauri::command]
+#[specta::specta]
+async fn transform_records(
+    state: State<'_, db::Database>,
+    exercise_id: i32,
+    is_add: bool,
+    a: f64,
+) -> Result<(), String> {
+    state.transform_records(exercise_id, is_add, a)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     let builder =
         tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
@@ -239,7 +252,8 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_db_bytes,
             import_db_from_bytes,
             restart_app,
-            get_common_reps
+            get_common_reps,
+            transform_records,
         ]);
 
     #[cfg(debug_assertions)]

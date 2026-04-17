@@ -362,6 +362,27 @@ impl Database {
         unique.truncate(6); // 最多显示 6 个候选
         Ok(unique)
     }
+
+    /// 给一个动作的记录数据倍增和添加常量，用于变更记录方式（记录片数=>记录kg等等）
+    pub async fn transform_records(
+        &self,
+        exercise_id: i32,
+        is_add: bool,
+        a: f64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            if is_add {
+                "UPDATE records SET weight = weight + ? WHERE exercise_id = ?"
+            } else {
+                "UPDATE records SET weight = weight * ? WHERE exercise_id = ?"
+            }
+        )
+        .bind(a)
+        .bind(exercise_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

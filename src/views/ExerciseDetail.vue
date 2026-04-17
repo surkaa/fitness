@@ -104,6 +104,39 @@
         :unit="unit"
         @success="loadHistory"
     />
+
+    <!-- 批量修改记录的重量弹窗：乘以一个数或者加减一个数的重量 -->
+    <q-dialog v-model="showBatchEditRecordValueDialog">
+      <q-card style="min-width: 300px">
+        <q-card-section>
+          <div class="text-h6">批量修改记录重量</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-toggle
+              v-model="editBatchRecordValueIsAdd"
+              :label="editBatchRecordValueIsAdd ? '加减操作' : '乘除操作'"
+          />
+          <q-input
+              filled
+              type="number"
+              v-model.number="editBatchRecordValueA"
+              label="操作数"
+              :suffix="formatUnit(unit)"
+              autofocus
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="取消" color="primary" v-close-popup/>
+          <q-btn
+              flat
+              label="保存"
+              color="primary"
+              @click="updateBatchRecordValue(editBatchRecordValueIsAdd, editBatchRecordValueA)"
+              :loading="submitting"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -161,6 +194,9 @@ const editForm = reactive({
   reps: null as number | null
 });
 const showRecordDialog = ref(false);
+const showBatchEditRecordValueDialog = ref(false);
+const editBatchRecordValueIsAdd = ref(false);
+const editBatchRecordValueA = ref(0);
 
 const dailyAveraged = computed(() => {
   const map = new Map<string, { total: number; count: number }>();
@@ -235,6 +271,12 @@ const rightAction = computed(() => [{
   label: '新增记录',
   icon: 'add',
   action: () => showRecordDialog.value = true,
+}, {
+  label: '修改所有记录值',
+  icon: 'edit',
+  action: () => {
+    showBatchEditRecordValueDialog.value = true;
+  }
 }]);
 
 async function loadHistory() {
@@ -321,6 +363,39 @@ function toggleInvert() {
     position: 'top',
     timeout: 1000
   });
+}
+
+async function updateBatchRecordValue(isAdd: boolean, a: number) {
+  if (!isAdd && a == 0) {
+    $q.notify({type: 'warning', message: '乘数不能为零'});
+    return;
+  }
+  if ((!isAdd && a == 1) || (isAdd && a == 0)) {
+    $q.notify({type: 'warning', message: '无意义的操作'});
+    return;
+  }
+  submitting.value = true;
+  try {
+    await api.transformRecords(exerciseId, isAdd, a);
+  } catch (e) {
+    $q.notify({type: 'negative', message: '更新失败: ' + e});
+  } finally {
+    submitting.value = false;
+    showBatchEditRecordValueDialog.value = false;
+    $q.notify({
+      type: 'positive',
+      message: '更新成功',
+      actions: [{
+        label: '撤回',
+        onClick: async () => await updateBatchRecordValue(
+            isAdd,
+            isAdd ? -a : 1 / a
+        )
+      }]
+    });
+    await loadHistory();
+    await exerciseStore.fetchForExercise(exerciseId);
+  }
 }
 
 onMounted(() => {
