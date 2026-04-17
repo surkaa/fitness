@@ -195,6 +195,20 @@ async fn get_db_bytes(state: State<'_, db::Database>) -> Result<Vec<u8>, String>
     fs::read(source).map_err(|e| format!("读取数据库文件失败: {}", e))
 }
 
+// /// TODO 导出指定动作的前n天的记录数据
+// #[tauri::command]
+// #[specta::specta]
+// async fn export_some_data(
+//     state: State<'_, db::Database>,
+//     exercise_ids: Vec<i32>,
+//     days: i32,
+// ) -> Result<Vec<(db::ExerciseStats, Vec<db::Record>)>, String> {
+//     state
+//         .export_some_data(exercise_ids, days)
+//         .await
+//         .map_err(|e| e.to_string())
+// }
+
 #[tauri::command]
 #[specta::specta]
 async fn import_db_from_bytes(
