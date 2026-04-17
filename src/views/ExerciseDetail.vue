@@ -366,6 +366,7 @@ function toggleInvert() {
 }
 
 async function updateBatchRecordValue(isAdd: boolean, a: number) {
+  if (submitting.value) return;
   if (!isAdd && a == 0) {
     $q.notify({type: 'warning', message: '乘数不能为零'});
     return;
@@ -377,10 +378,6 @@ async function updateBatchRecordValue(isAdd: boolean, a: number) {
   submitting.value = true;
   try {
     await api.transformRecords(exerciseId, isAdd, a);
-  } catch (e) {
-    $q.notify({type: 'negative', message: '更新失败: ' + e});
-  } finally {
-    submitting.value = false;
     showBatchEditRecordValueDialog.value = false;
     $q.notify({
       type: 'positive',
@@ -395,6 +392,10 @@ async function updateBatchRecordValue(isAdd: boolean, a: number) {
     });
     await loadHistory();
     await exerciseStore.fetchForExercise(exerciseId);
+  } catch (e) {
+    $q.notify({type: 'negative', message: '更新失败: ' + e});
+  } finally {
+    submitting.value = false;
   }
 }
 
