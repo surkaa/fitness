@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, Sqlite};
 use std::fs;
 use std::path::Path;
-use chrono::{DateTime, Utc};
 
 // 轮次 (比如: "一轮次: 胸肩")
 #[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
@@ -58,6 +58,14 @@ pub struct ExerciseStats {
     #[serde(with = "chrono::serde::ts_milliseconds_option")]
     #[specta(type = f64)]
     pub last_date: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportData {
+    pub routines: Vec<Routine>,
+    pub exercises: Vec<Exercise>,
+    pub records: Vec<Record>,
 }
 
 pub struct Database {
@@ -370,35 +378,88 @@ impl Database {
         is_add: bool,
         a: f64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            if is_add {
-                "UPDATE records SET weight = weight + ? WHERE exercise_id = ?"
-            } else {
-                "UPDATE records SET weight = weight * ? WHERE exercise_id = ?"
-            }
-        )
+        sqlx::query(if is_add {
+            "UPDATE records SET weight = weight + ? WHERE exercise_id = ?"
+        } else {
+            "UPDATE records SET weight = weight * ? WHERE exercise_id = ?"
+        })
         .bind(a)
         .bind(exercise_id)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
+
+    /// 导出指定时间段内的所有数据
+    pub async fn export_some_data(
+        &self,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+    ) -> Result<ExportData, sqlx::Error> {
+        // 确定指定时间段内有哪些记录
+        let records = sqlx::query_as::<_, Record>(
+            "SELECT * FROM records
+                    WHERE strftime('%s', created_at) >= strftime('%s', ?)
+                    AND strftime('%s', created_at) <= strftime('%s', ?)",
+        )
+        .bind(start_time)
+        .bind(end_time)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // 从记录中提取动作ID并去重
+        let exercise_ids: Vec<i32> = records
+            .iter()
+            .map(|r| r.exercise_id)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        // 获取动作信息
+        let mut exercises: Vec<Exercise> = Vec::new();
+        for exercise_id in exercise_ids {
+            let exercise = sqlx::query_as::<_, Exercise>("SELECT * FROM exercises WHERE id = ?")
+                .bind(exercise_id)
+                .fetch_one(&self.pool)
+                .await?;
+            exercises.push(exercise);
+        }
+
+        // 从动作信息获取轮次ID并去重
+        let routine_ids: Vec<i32> = exercises
+            .iter()
+            .map(|e| e.routine_id)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        // 获取轮次信息
+        let mut routines: Vec<Routine> = Vec::new();
+        for routine_id in routine_ids {
+            let routine = sqlx::query_as::<_, Routine>("SELECT * FROM routines WHERE id = ?")
+                .bind(routine_id)
+                .fetch_one(&self.pool)
+                .await?;
+            routines.push(routine);
+        }
+        // 组装导出数据
+        Ok(ExportData {
+            records,
+            exercises,
+            routines,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
     use tempfile::tempdir;
-
-    async fn setup_test_db() -> Database {
-        let dir = tempdir().expect("创建临时目录失败");
-        let path = dir.path().to_str().expect("路径转换失败");
-        Database::new(path).await.expect("数据库初始化失败")
-    }
 
     #[tokio::test]
     async fn test_basic_flow() {
-        let db = setup_test_db().await;
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
 
         // 1. 创建轮次
         let r_id = db.create_routine("推胸日", "周一练").await.unwrap();
@@ -424,7 +485,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_cascade_delete() {
-        let db = setup_test_db().await;
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
 
         // 1. 建立层级数据：轮次 -> 动作 -> 记录
         let r_id = db.create_routine("背部", "").await.unwrap();
@@ -454,7 +517,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_foreign_key_constraint() {
-        let db = setup_test_db().await;
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
 
         // 创建轮次和动作
         let r_id = db.create_routine("肩部", "").await.unwrap();
@@ -472,5 +537,50 @@ mod tests {
         if let Err(e) = result {
             println!("{}", e);
         }
+    }
+
+    #[tokio::test]
+    async fn test_export_data() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        // init data
+        let r1_id = db.create_routine("背部", "").await.unwrap();
+        let e1_id = db
+            .add_exercise(r1_id, "引体向上", 4, "力竭", "", "个")
+            .await
+            .unwrap();
+        db.add_record(e1_id, 0.0, Some(10)).await.unwrap();
+        db.add_record(e1_id, 0.0, Some(12)).await.unwrap();
+        // 手动延迟1秒
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let start_time = Utc::now();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let r2_id = db.create_routine("胸部", "").await.unwrap();
+        let e2_id = db
+            .add_exercise(r2_id, "卧推", 5, "5x5", "重", "kg")
+            .await
+            .unwrap();
+        db.add_record(e2_id, 50.0, Some(10)).await.unwrap();
+        db.add_record(e2_id, 50.0, Some(12)).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let end_time = Utc::now();
+        println!("start_time: {:#?}", start_time);
+        println!("end_time: {:#?}", end_time);
+        println!("r1_id: {:#?}, r2_id: {:#?}", r1_id, r2_id);
+        println!("e1_id: {:#?}, e2_id: {:#?}", e1_id, e2_id);
+        let query_routines = db.get_routines().await.unwrap();
+        println!("query_routines: {:#?}", query_routines);
+        let query_exercises = db.get_exercises(r2_id).await.unwrap();
+        println!("query_exercises: {:#?}", query_exercises);
+        let query_records = db.get_all_records(e2_id).await.unwrap();
+        println!("query_records: {:#?}", query_records);
+        let export_data = db.export_some_data(start_time, end_time).await.unwrap();
+
+        // verify export data
+        assert_eq!(export_data.records.len(), 2);
+        assert_eq!(export_data.exercises.len(), 1);
+        assert_eq!(export_data.routines.len(), 1);
     }
 }

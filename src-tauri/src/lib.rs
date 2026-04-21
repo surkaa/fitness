@@ -1,3 +1,5 @@
+use crate::db::ExportData;
+use chrono::{DateTime, Utc};
 use std::fs;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_log::log::info;
@@ -195,19 +197,19 @@ async fn get_db_bytes(state: State<'_, db::Database>) -> Result<Vec<u8>, String>
     fs::read(source).map_err(|e| format!("读取数据库文件失败: {}", e))
 }
 
-// /// TODO 导出指定动作的前n天的记录数据
-// #[tauri::command]
-// #[specta::specta]
-// async fn export_some_data(
-//     state: State<'_, db::Database>,
-//     exercise_ids: Vec<i32>,
-//     days: i32,
-// ) -> Result<Vec<(db::ExerciseStats, Vec<db::Record>)>, String> {
-//     state
-//         .export_some_data(exercise_ids, days)
-//         .await
-//         .map_err(|e| e.to_string())
-// }
+// 导出指定动作的前n天的记录数据
+#[tauri::command]
+#[specta::specta]
+async fn export_some_data(
+    state: State<'_, db::Database>,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+) -> Result<ExportData, String> {
+    state
+        .export_some_data(start_time, end_time)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -242,7 +244,8 @@ async fn transform_records(
     is_add: bool,
     a: f64,
 ) -> Result<(), String> {
-    state.transform_records(exercise_id, is_add, a)
+    state
+        .transform_records(exercise_id, is_add, a)
         .await
         .map_err(|e| e.to_string())
 }
@@ -268,6 +271,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             restart_app,
             get_common_reps,
             transform_records,
+            export_some_data,
         ]);
 
     #[cfg(debug_assertions)]

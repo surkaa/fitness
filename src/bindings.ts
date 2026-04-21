@@ -187,6 +187,14 @@ async transformRecords(exerciseId: number, isAdd: boolean, a: number) : Promise<
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async exportSomeData(startTime: string, endTime: string) : Promise<Result<ExportData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_some_data", { startTime, endTime }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -222,6 +230,7 @@ note: string | null;
  */
 unit: string }
 export type ExerciseStats = { exerciseId: number; totalRecords: number; maxWeight: number | null; lastDate: number }
+export type ExportData = { routines: Routine[]; exercises: Exercise[]; records: Record[] }
 export type Record = { id: number; exerciseId: number; 
 /**
  * 记录时间
