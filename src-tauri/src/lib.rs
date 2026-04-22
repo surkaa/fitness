@@ -1,4 +1,4 @@
-use crate::db::ExportData;
+use crate::db::{DailyRecordCount, ExportData};
 use chrono::{DateTime, Utc};
 use std::fs;
 use tauri::{AppHandle, Manager, State};
@@ -211,6 +211,21 @@ async fn export_some_data(
         .map_err(|e| e.to_string())
 }
 
+
+// 获取某年某月下每天做了几个动作
+#[tauri::command]
+#[specta::specta]
+async fn get_daily_exercise_count(
+    state: State<'_, db::Database>,
+    year: i32,
+    month: u32,
+) -> Result<Vec<DailyRecordCount>, String> {
+    state
+        .get_daily_record_count(year, month)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 async fn import_db_from_bytes(
@@ -272,6 +287,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_common_reps,
             transform_records,
             export_some_data,
+            get_daily_exercise_count,
         ]);
 
     #[cfg(debug_assertions)]
