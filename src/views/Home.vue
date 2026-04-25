@@ -32,9 +32,9 @@
       <div class="row items-center justify-between q-col-gutter-md">
         <div class="col">
           <div class="text-caption text-grey-7">最近训练</div>
-          <div class="text-subtitle1 text-weight-medium">{{ lastActiveRoutine.routineName }}</div>
+          <div class="text-subtitle1 text-weight-medium">{{ lastActiveRoutine?.routineName || '无' }}</div>
           <div class="text-caption text-grey-7 q-mt-xs">
-            上次训练：{{ formatRecordDate(lastActiveRoutine.lastTrainedAt) }}
+            上次训练：{{ formatRecordDate(lastActiveRoutine?.lastTrainedAt || 0) }}
           </div>
         </div>
         <div class="col-auto">
