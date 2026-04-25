@@ -203,6 +203,14 @@ async getDailyExerciseCount(year: number, month: number) : Promise<Result<DailyE
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getDayTrainingDetails(day: string) : Promise<Result<DayExerciseRecords[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_day_training_details", { day }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -225,6 +233,7 @@ day: number;
  * 当天训练过的动作数量
  */
 count: number }
+export type DayExerciseRecords = { exercise: Exercise; routineName: string; records: Record[] }
 export type Exercise = { id: number; routineId: number; 
 /**
  * 动作名称

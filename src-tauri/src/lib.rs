@@ -1,4 +1,4 @@
-use crate::db::{DailyExerciseCount, ExportData};
+use crate::db::{DailyExerciseCount, DayExerciseRecords, ExportData};
 use chrono::{DateTime, Utc};
 use std::fs;
 use tauri::{AppHandle, Manager, State};
@@ -228,6 +228,18 @@ async fn get_daily_exercise_count(
 
 #[tauri::command]
 #[specta::specta]
+async fn get_day_training_details(
+    state: State<'_, db::Database>,
+    day: String,
+) -> Result<Vec<DayExerciseRecords>, String> {
+    state
+        .get_day_training_details(&day)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 async fn import_db_from_bytes(
     state: State<'_, db::Database>,
     bytes: Vec<u8>,
@@ -288,6 +300,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             transform_records,
             export_some_data,
             get_daily_exercise_count,
+            get_day_training_details,
         ]);
 
     #[cfg(debug_assertions)]

@@ -77,6 +77,30 @@ pub struct DailyExerciseCount {
     pub count: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct DayExerciseRecords {
+    pub exercise: Exercise,
+    pub routine_name: String,
+    pub records: Vec<Record>,
+}
+
+#[derive(Debug, FromRow)]
+struct DayTrainingRow {
+    exercise_id: i32,
+    routine_id: i32,
+    exercise_name: String,
+    target_sets: i32,
+    target_reps: String,
+    note: Option<String>,
+    unit: String,
+    routine_name: String,
+    record_id: i32,
+    created_at: DateTime<Utc>,
+    weight: f64,
+    reps: Option<i32>,
+}
+
 pub struct Database {
     pool: Pool<Sqlite>,
     path: String,
@@ -476,6 +500,71 @@ impl Database {
         .fetch_all(&self.pool)
         .await
     }
+
+    /// 获取某一天训练过的动作以及对应记录
+    pub async fn get_day_training_details(
+        &self,
+        day: &str,
+    ) -> Result<Vec<DayExerciseRecords>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, DayTrainingRow>(
+            "SELECT
+                e.id AS exercise_id,
+                e.routine_id AS routine_id,
+                e.name AS exercise_name,
+                e.target_sets AS target_sets,
+                e.target_reps AS target_reps,
+                e.note AS note,
+                e.unit AS unit,
+                rt.name AS routine_name,
+                r.id AS record_id,
+                r.created_at AS created_at,
+                r.weight AS weight,
+                r.reps AS reps
+            FROM records r
+            JOIN exercises e ON r.exercise_id = e.id
+            JOIN routines rt ON e.routine_id = rt.id
+            WHERE strftime('%Y-%m-%d', r.created_at) = ?
+            ORDER BY rt.id, e.id, r.created_at DESC, r.id DESC",
+        )
+        .bind(day)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut grouped: Vec<DayExerciseRecords> = Vec::new();
+        let mut exercise_indexes = std::collections::HashMap::<i32, usize>::new();
+
+        for row in rows {
+            let record = Record {
+                id: row.record_id,
+                exercise_id: row.exercise_id,
+                created_at: row.created_at,
+                weight: row.weight,
+                reps: row.reps,
+            };
+
+            if let Some(index) = exercise_indexes.get(&row.exercise_id) {
+                grouped[*index].records.push(record);
+                continue;
+            }
+
+            exercise_indexes.insert(row.exercise_id, grouped.len());
+            grouped.push(DayExerciseRecords {
+                exercise: Exercise {
+                    id: row.exercise_id,
+                    routine_id: row.routine_id,
+                    name: row.exercise_name,
+                    target_sets: row.target_sets,
+                    target_reps: row.target_reps,
+                    note: row.note,
+                    unit: row.unit,
+                },
+                routine_name: row.routine_name,
+                records: vec![record],
+            });
+        }
+
+        Ok(grouped)
+    }
 }
 
 #[cfg(test)]
@@ -748,5 +837,57 @@ mod tests {
 
         assert_eq!(daily_counts[2].day, 28);
         assert_eq!(daily_counts[2].count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_day_training_details() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        let chest_id = db.create_routine("胸部", "").await.unwrap();
+        let back_id = db.create_routine("背部", "").await.unwrap();
+        let bench_id = db
+            .add_exercise(chest_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+        let row_id = db
+            .add_exercise(back_id, "划船", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        let rec1 = db.add_record(bench_id, 80.0, Some(8)).await.unwrap();
+        let rec2 = db.add_record(bench_id, 75.0, Some(10)).await.unwrap();
+        let rec3 = db.add_record(row_id, 60.0, Some(12)).await.unwrap();
+
+        let update_time_query = "UPDATE records SET created_at = ? WHERE id = ?";
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 09:00:00")
+            .bind(rec1)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 08:00:00")
+            .bind(rec2)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 18:00:00")
+            .bind(rec3)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        let details = db.get_day_training_details("2026-04-16").await.unwrap();
+
+        assert_eq!(details.len(), 2);
+        assert_eq!(details[0].exercise.name, "卧推");
+        assert_eq!(details[0].records.len(), 2);
+        assert_eq!(details[0].records[0].weight, 80.0);
+        assert_eq!(details[1].exercise.name, "划船");
+        assert_eq!(details[1].routine_name, "背部");
+        assert_eq!(details[1].records.len(), 1);
     }
 }
