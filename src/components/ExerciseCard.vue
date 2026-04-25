@@ -63,6 +63,14 @@
           />
           <div class="row q-gutter-x-xs">
             <q-btn
+                :icon="exercise.hasImage ? 'image' : 'photo_camera'"
+                flat
+                round
+                color="grey-5"
+                size="sm"
+                @click.stop="$emit('image', exercise)"
+            />
+            <q-btn
                 icon="edit"
                 flat
                 round
@@ -82,6 +90,21 @@
         </div>
       </q-item-section>
     </q-item>
+
+    <q-slide-transition>
+      <div v-if="imageExpanded" class="image-panel">
+        <div v-if="imageLoading" class="row items-center justify-center image-loading text-grey-6">
+          <q-spinner size="sm" class="q-mr-sm" />
+          <span>加载图片中</span>
+        </div>
+        <img
+            v-else-if="imageUrl"
+            :src="imageUrl"
+            :alt="`${exercise.name} 器械照片`"
+            class="exercise-image"
+        />
+      </div>
+    </q-slide-transition>
   </q-card>
 </template>
 
@@ -93,6 +116,9 @@ import {Exercise} from "../bindings.ts";
 
 defineProps<{
   exercise: Exercise;
+  imageExpanded?: boolean;
+  imageLoading?: boolean;
+  imageUrl?: string | null;
 }>();
 
 const exerciseStore = useExerciseStore();
@@ -102,6 +128,7 @@ defineEmits<{
   (e: 'delete', id: number): void;
   (e: 'edit', id: number): void;
   (e: 'record', exercise: Exercise): void;
+  (e: 'image', exercise: Exercise): void;
 }>();
 </script>
 
@@ -120,5 +147,25 @@ defineEmits<{
 .record-btn {
   min-width: 84px;
   border-radius: 12px;
+}
+
+.image-panel {
+  padding: 0 16px 16px;
+}
+
+.image-loading {
+  min-height: 160px;
+  border-radius: 14px;
+  background: rgba(245, 248, 252, 0.9);
+}
+
+.exercise-image {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  background: #f5f8fc;
 }
 </style>

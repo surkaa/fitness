@@ -106,6 +106,22 @@ async updateExercise(exerciseId: number, name: string, sets: number, reps: strin
     else return { status: "error", error: e  as any };
 }
 },
+async saveExerciseImage(exerciseId: number, mimeType: string, bytes: number[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_exercise_image", { exerciseId, mimeType, bytes }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getExerciseImage(exerciseId: number) : Promise<Result<ExerciseImage | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_exercise_image", { exerciseId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * 记录一次最大重量
  */
@@ -273,7 +289,12 @@ note: string | null;
 /**
  * 记录时的单位 'kg', 'lb', 'plate' (多少片)
  */
-unit: string }
+unit: string;
+/**
+ * 是否已添加器械照片
+ */
+hasImage: boolean }
+export type ExerciseImage = { mimeType: string; bytes: number[] }
 export type ExerciseStats = { exerciseId: number; totalRecords: number; maxWeight: number | null; lastDate: number }
 export type ExportData = { routines: Routine[]; exercises: Exercise[]; records: Record[] }
 export type LastActiveRoutine = { routineId: number; routineName: string; lastTrainedAt: number }

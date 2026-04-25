@@ -11,10 +11,14 @@
       <div class="col-12" v-for="ex in exercises" :key="ex.id">
         <ExerciseCard
             :exercise="ex"
+            :image-expanded="expandedImageExerciseId === ex.id"
+            :image-loading="loadingImageExerciseId === ex.id"
+            :image-url="exerciseImageUrls[ex.id] ?? null"
             @click="goToExerciseHistory(ex)"
             @delete="handleDeleteExercise"
             @record="openRecordDialog"
             @edit="handleEditExercise"
+            @image="handleExerciseImageAction"
         />
       </div>
     </div>
@@ -77,10 +81,19 @@
       :exercise-note="recordingExercise?.note"
       @success="loadData"
   />
+
+  <input
+      ref="exerciseImageInput"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      class="hidden-image-input"
+      @change="handleExerciseImageSelected"
+  />
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref} from 'vue';
+import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useQuasar} from 'quasar';
 import ExerciseCard from '../components/ExerciseCard.vue';
@@ -108,6 +121,11 @@ const showAddDialog = ref(false);
 const showRecordDialog = ref(false);
 const editingId = ref<number | null>(null);
 const isEditing = computed(() => editingId.value !== null);
+const exerciseImageInput = ref<HTMLInputElement | null>(null);
+const pendingImageExercise = ref<Exercise | null>(null);
+const expandedImageExerciseId = ref<number | null>(null);
+const loadingImageExerciseId = ref<number | null>(null);
+const exerciseImageUrls = reactive<Record<number, string>>({});
 
 // 表单数据
 const formState = reactive({
@@ -125,6 +143,13 @@ async function loadData() {
   loading.value = true;
   try {
     exercises.value = await api.getExercises(routineId);
+    if (
+        expandedImageExerciseId.value !== null &&
+        !exercises.value.some(exercise => exercise.id === expandedImageExerciseId.value && exercise.hasImage)
+    ) {
+      revokeExerciseImageUrl(expandedImageExerciseId.value);
+      expandedImageExerciseId.value = null;
+    }
     // 批量获取统计
     const ids = exercises.value.map(e => e.id);
     if (ids.length) {
@@ -221,6 +246,83 @@ async function openRecordDialog(exercise: Exercise) {
   showRecordDialog.value = true
 }
 
+function revokeExerciseImageUrl(exerciseId: number) {
+  if (!exerciseImageUrls[exerciseId]) {
+    return;
+  }
+  URL.revokeObjectURL(exerciseImageUrls[exerciseId]);
+  delete exerciseImageUrls[exerciseId];
+}
+
+async function handleExerciseImageAction(exercise: Exercise) {
+  if (!exercise.hasImage) {
+    pendingImageExercise.value = exercise;
+    exerciseImageInput.value?.click();
+    return;
+  }
+
+  if (expandedImageExerciseId.value === exercise.id) {
+    expandedImageExerciseId.value = null;
+    return;
+  }
+
+  expandedImageExerciseId.value = exercise.id;
+  if (exerciseImageUrls[exercise.id]) {
+    return;
+  }
+
+  loadingImageExerciseId.value = exercise.id;
+  try {
+    const image = await api.getExerciseImage(exercise.id);
+    if (!image) {
+      throw new Error('未找到动作图片');
+    }
+
+    exerciseImageUrls[exercise.id] = URL.createObjectURL(
+        new Blob([new Uint8Array(image.bytes)], {type: image.mimeType}),
+    );
+  } catch (e) {
+    expandedImageExerciseId.value = null;
+    $q.notify({type: 'negative', message: `加载图片失败: ${e}`});
+  } finally {
+    loadingImageExerciseId.value = null;
+  }
+}
+
+async function handleExerciseImageSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  const exercise = pendingImageExercise.value;
+
+  input.value = '';
+  pendingImageExercise.value = null;
+
+  if (!file || !exercise) {
+    return;
+  }
+
+  loadingImageExerciseId.value = exercise.id;
+  try {
+    const buffer = await file.arrayBuffer();
+    await api.saveExerciseImage(exercise.id, file.type || 'image/jpeg', Array.from(new Uint8Array(buffer)));
+
+    revokeExerciseImageUrl(exercise.id);
+    exerciseImageUrls[exercise.id] = URL.createObjectURL(file);
+    expandedImageExerciseId.value = exercise.id;
+
+    const target = exercises.value.find(item => item.id === exercise.id);
+    if (target) {
+      target.hasImage = true;
+    }
+
+    $q.notify({type: 'positive', message: '动作照片已保存'});
+  } catch (e) {
+    $q.notify({type: 'negative', message: `保存图片失败: ${e}`});
+  } finally {
+    loadingImageExerciseId.value = null;
+  }
+}
+
 // 跳转详情
 function goToExerciseHistory(e: Exercise) {
   router.push({
@@ -252,6 +354,10 @@ onMounted(() => {
   }
   loadData();
 });
+
+onBeforeUnmount(() => {
+  Object.keys(exerciseImageUrls).forEach(key => revokeExerciseImageUrl(Number(key)));
+});
 </script>
 
 <style scoped>
@@ -269,6 +375,10 @@ onMounted(() => {
 
 .dialog-card {
   border-radius: 18px;
+}
+
+.hidden-image-input {
+  display: none;
 }
 
 @media (max-width: 600px) {
