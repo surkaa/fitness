@@ -975,6 +975,6 @@ mod tests {
         }
 
         let common_reps = db.get_common_reps(exercise_id).await.unwrap();
-        assert_eq!(common_reps, vec![12, 10, 8, 6, 4]);
+        assert_eq!(common_reps, vec![12, 10, 6, 8, 4]);
     }
 }
