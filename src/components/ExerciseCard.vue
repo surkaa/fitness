@@ -1,16 +1,16 @@
 <template>
-  <q-card class="my-card q-mb-sm" bordered flat>
+  <q-card class="exercise-card q-mb-sm" bordered flat>
     <q-item>
       <q-item-section class="cursor-pointer" @click="$emit('click')">
 
-        <div class="row items-center q-mb-xs">
+        <div class="row items-center q-mb-sm">
           <div class="text-weight-bold text-h6 q-mr-sm">{{ exercise.name }}</div>
-          <q-badge color="grey-2" text-color="grey-8" class="q-px-sm">
+          <q-badge color="grey-1" text-color="grey-8" class="unit-badge q-px-sm">
             {{ formatUnit(exercise.unit) }}
           </q-badge>
         </div>
 
-        <div class="row items-center text-caption text-grey-8 q-mb-xs q-gutter-x-md">
+        <div class="row items-center text-caption text-grey-8 q-mb-sm q-gutter-x-md">
           <div class="row items-center">
             <q-icon name="track_changes" size="16px" class="q-mr-xs text-primary"/>
             <span>{{ exercise.targetSets }}组 × {{ exercise.targetReps }}</span>
@@ -58,7 +58,7 @@
               icon="add"
               color="primary"
               unelevated
-              class="q-px-sm"
+              class="record-btn q-px-sm"
               @click.stop="$emit('record', exercise)"
           />
           <div class="row q-gutter-x-xs">
@@ -104,3 +104,21 @@ defineEmits<{
   (e: 'record', exercise: Exercise): void;
 }>();
 </script>
+
+<style scoped>
+.exercise-card {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.unit-badge {
+  border: 1px solid rgba(27, 42, 58, 0.08);
+}
+
+.record-btn {
+  min-width: 84px;
+  border-radius: 12px;
+}
+</style>

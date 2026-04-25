@@ -1,9 +1,16 @@
 <template>
-  <q-page class="q-pa-md column">
+  <q-page class="routine-detail-page q-pa-md column">
     <Header :title="routineName || '训练动作列表'" :showBack="true" />
 
-    <div v-if="exercises.length === 0" class="col flex flex-center column text-grey">
-      <q-icon name="fitness_center" size="64px"/>
+    <section class="detail-summary q-mb-md">
+      <div class="text-caption text-grey-7">训练周期</div>
+      <div class="text-subtitle1 text-weight-medium">
+        {{ exercises.length }} 个动作待训练
+      </div>
+    </section>
+
+    <div v-if="exercises.length === 0" class="empty-state col flex flex-center column text-grey">
+      <q-icon name="fitness_center" size="56px"/>
       <div class="q-mt-md">还没有动作，点击右下角添加</div>
     </div>
 
@@ -25,7 +32,7 @@
   </q-page>
 
   <q-dialog v-model="showAddDialog" @hide="resetForm">
-    <q-card style="min-width: 350px">
+    <q-card class="dialog-card" style="min-width: 350px">
       <q-card-section>
         <div class="text-h6">{{ isEditing ? '编辑动作' : '添加新动作' }}</div>
       </q-card-section>
@@ -253,3 +260,35 @@ onMounted(() => {
   loadData();
 });
 </script>
+
+<style scoped>
+.routine-detail-page {
+  background:
+      radial-gradient(circle at top left, rgba(25, 118, 210, 0.1), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
+.detail-summary {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.empty-state {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px dashed rgba(27, 42, 58, 0.12);
+}
+
+.dialog-card {
+  border-radius: 18px;
+}
+
+@media (max-width: 600px) {
+  .detail-summary {
+    padding: 12px;
+  }
+}
+</style>
