@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <section v-if="lastActiveRoutine" class="continue-panel q-mb-md">
+    <section v-if="showContinuePanel" class="continue-panel q-mb-md">
       <div class="row items-center justify-between q-col-gutter-md">
         <div class="col">
           <div class="text-caption text-grey-7">最近训练</div>
@@ -231,6 +231,11 @@ const monthPanels = computed(() => ([
 const currentMonthStats = computed(() => monthCache[monthKey(currentMonth.value)] || emptyMonthStats());
 const activeDayCount = computed(() => currentMonthStats.value.activeDayCount);
 const totalExerciseCount = computed(() => currentMonthStats.value.totalExerciseCount);
+const showContinuePanel = computed(() => {
+  if (!lastActiveRoutine.value) return false;
+  const yesterday = date.subtractFromDate(new Date(), {days: 1});
+  return !date.isSameDate(new Date(lastActiveRoutine.value.lastTrainedAt), yesterday, 'day');
+});
 const selectedDayTitle = computed(() => {
   if (!selectedDateKey.value) return '未选择日期';
   const parsed = new Date(`${selectedDateKey.value}T00:00:00`);
