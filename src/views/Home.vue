@@ -115,21 +115,23 @@
             />
           </button>
 
-          <div v-if="expandedExerciseId === item.exercise.id" class="exercise-records">
-            <div
-                v-for="record in item.records"
-                :key="record.id"
-                class="exercise-record-row"
-            >
-              <div class="text-body2 text-weight-medium">
-                {{ record.weight }} {{ formatUnit(item.exercise.unit) }}
-                <span v-if="record.reps" class="text-grey-7"> · {{ record.reps }} 次</span>
-              </div>
-              <div class="text-caption text-grey-7">
-                {{ formatRecordDate(record.createdAt) }}
+          <transition name="record-expand">
+            <div v-if="expandedExerciseId === item.exercise.id" class="exercise-records">
+              <div
+                  v-for="record in item.records"
+                  :key="record.id"
+                  class="exercise-record-row"
+              >
+                <div class="text-body2 text-weight-medium">
+                  {{ record.weight }} {{ formatUnit(item.exercise.unit) }}
+                  <span v-if="record.reps" class="text-grey-7"> · {{ record.reps }} 次</span>
+                </div>
+                <div class="text-caption text-grey-7">
+                  {{ formatRecordDate(record.createdAt) }}
+                </div>
               </div>
             </div>
-          </div>
+          </transition>
         </article>
       </div>
     </section>
@@ -569,6 +571,18 @@ onMounted(() => {
 
 .exercise-record-row + .exercise-record-row {
   border-top: 1px dashed rgba(27, 42, 58, 0.08);
+}
+
+.record-expand-enter-active,
+.record-expand-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+  transform-origin: top;
+}
+
+.record-expand-enter-from,
+.record-expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .calendar-track {
