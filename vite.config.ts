@@ -4,10 +4,10 @@ import {quasar, transformAssetUrls} from "@quasar/vite-plugin";
 
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd());
-    const host = env.VITE_TAURI_DEV_HOST;
-    const hmr = host ? {
+    const tauriDevHost = process.env.TAURI_DEV_HOST || env.VITE_TAURI_DEV_HOST;
+    const hmr = tauriDevHost ? {
         protocol: "ws",
-        host,
+        host: tauriDevHost,
         port: 5174,
     } : undefined;
     return {
@@ -23,7 +23,7 @@ export default defineConfig(({mode}) => {
         server: {
             port: 5173,
             strictPort: true,
-            host: host || false,
+            host: tauriDevHost ? "0.0.0.0" : false,
             hmr,
             watch: {
                 ignored: ["**/src-tauri/**"],

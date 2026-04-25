@@ -39,7 +39,12 @@
         @pointerleave="handlePointerLeave"
     >
       <div class="calendar-track" :style="trackStyle">
-        <section v-for="panelDate in monthPanels" :key="monthKey(panelDate)" class="calendar-panel">
+        <section
+            v-for="panelDate in monthPanels"
+            :key="monthKey(panelDate)"
+            class="calendar-panel"
+            :class="`weeks-${getWeekCount(panelDate)}`"
+        >
           <div class="weekdays">
             <div v-for="weekday in weekdays" :key="weekday" class="weekday-cell">
               {{ weekday }}
@@ -169,6 +174,11 @@ function formatDateKey(source: Date) {
 
 function getMonthDays(source: Date) {
   return new Date(source.getFullYear(), source.getMonth() + 1, 0).getDate();
+}
+
+function getWeekCount(source: Date) {
+  const firstDay = new Date(source.getFullYear(), source.getMonth(), 1).getDay();
+  return Math.ceil((firstDay + getMonthDays(source)) / 7);
 }
 
 function getLevel(count: number) {
@@ -390,7 +400,7 @@ onMounted(() => {
 .calendar-viewport {
   overflow: hidden;
   touch-action: pan-y;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
 }
 
@@ -425,8 +435,11 @@ onMounted(() => {
 }
 
 .days-grid {
-  grid-auto-rows: minmax(72px, 1fr);
-  height: calc(100% - 34px);
+  grid-auto-rows: 58px;
+}
+
+.calendar-panel.weeks-5 .days-grid {
+  grid-auto-rows: 64px;
 }
 
 .day-cell {
@@ -492,7 +505,11 @@ onMounted(() => {
 
   .days-grid {
     gap: 6px;
-    grid-auto-rows: minmax(64px, 1fr);
+    grid-auto-rows: 50px;
+  }
+
+  .calendar-panel.weeks-5 .days-grid {
+    grid-auto-rows: 56px;
   }
 
   .day-cell {
