@@ -1,9 +1,16 @@
 <template>
-  <q-page padding class="column no-wrap overflow-hidden" :style-fn="pageStyleFn">
+  <q-page padding class="exercise-detail-page column no-wrap overflow-hidden" :style-fn="pageStyleFn">
     <Header :title="exerciseName" :showBack="true" :rightAction="rightAction"/>
 
-    <q-card flat bordered class="q-mb-md bg-grey-1">
-      <q-card-section>
+    <section class="stats-summary q-mb-md">
+      <div class="text-caption text-grey-7">训练概览</div>
+      <div class="text-subtitle1 text-weight-medium">
+        历时 {{ dailyAveraged.length }} 天，共训练 {{ records.length }} 组
+      </div>
+    </section>
+
+    <q-card flat bordered class="trend-card q-mb-md">
+      <q-card-section class="q-pb-sm">
         <div class="text-subtitle2 text-grey-7">走势</div>
       </q-card-section>
 
@@ -20,9 +27,6 @@
 
     <div class="row items-center q-mb-sm q-px-sm">
       <div class="text-h6">历史记录</div>
-      <div class="text-caption text-grey q-ml-md">
-        历时{{ dailyAveraged.length }}天，共训练{{ records.length }}组
-      </div>
     </div>
 
     <div class="col scroll">
@@ -30,7 +34,7 @@
         暂无训练记录
       </div>
 
-      <q-list separator bordered class="rounded-borders bg-white" v-else>
+      <q-list separator bordered class="record-list bg-white" v-else>
         <q-item v-for="record in records" :key="record.id">
           <q-item-section avatar>
             <q-avatar color="primary" text-color="white" icon="fitness_center" size="sm"/>
@@ -69,7 +73,7 @@
 
     <!-- 编辑记录弹窗 -->
     <q-dialog v-model="showEditDialog">
-      <q-card style="min-width: 300px">
+      <q-card class="dialog-card" style="min-width: 300px">
         <q-card-section>
           <div class="text-h6">编辑记录</div>
         </q-card-section>
@@ -107,7 +111,7 @@
 
     <!-- 批量修改记录的重量弹窗：乘以一个数或者加减一个数的重量 -->
     <q-dialog v-model="showBatchEditRecordValueDialog">
-      <q-card style="min-width: 300px">
+      <q-card class="dialog-card" style="min-width: 300px">
         <q-card-section>
           <div class="text-h6">批量修改记录重量</div>
         </q-card-section>
@@ -403,3 +407,42 @@ onMounted(() => {
   loadHistory();
 });
 </script>
+
+<style scoped>
+.exercise-detail-page {
+  background:
+      radial-gradient(circle at top left, rgba(25, 118, 210, 0.1), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
+.stats-summary {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.trend-card {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.record-list {
+  border-radius: 18px;
+  border-color: rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.dialog-card {
+  border-radius: 18px;
+}
+
+@media (max-width: 600px) {
+  .stats-summary {
+    padding: 12px;
+  }
+}
+</style>

@@ -1,6 +1,6 @@
 <template>
-  <q-page class="q-pa-md column">
-    <Header title="训练计划" :rightAction="rightAction"/>
+  <q-page class="routines-page q-pa-md column">
+    <Header title="训练计划" :showBack="true" :rightAction="rightAction"/>
 
     <div class="row q-col-gutter-md q-pb-xl" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
@@ -13,9 +13,9 @@
       </div>
     </div>
 
-    <div v-else-if="!loading" class="col flex flex-center column text-grey">
-      <q-icon name="fitness_center" size="64px"/>
-      <div class="q-mt-md text-h6" style="opacity: 0.7">
+    <div v-else-if="!loading" class="empty-state col flex flex-center column text-grey">
+      <q-icon name="fitness_center" size="56px"/>
+      <div class="q-mt-md text-h6" style="opacity: 0.78">
         还没有训练计划
       </div>
       <div class="text-caption">点击右下角添加</div>
@@ -27,7 +27,7 @@
   </q-page>
 
   <q-dialog v-model="showAddDialog" @hide="resetForm">
-    <q-card style="min-width: 350px">
+    <q-card class="dialog-card" style="min-width: 350px">
       <q-card-section>
         <div class="text-h6">{{ isEditing ? '编辑训练计划' : '新建训练计划' }}</div>
       </q-card-section>
@@ -243,3 +243,21 @@ onMounted(() => {
   }).finally(() => loading.value = false);
 });
 </script>
+
+<style scoped>
+.routines-page {
+  background:
+      radial-gradient(circle at top left, rgba(25, 118, 210, 0.1), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
+.empty-state {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px dashed rgba(27, 42, 58, 0.12);
+}
+
+.dialog-card {
+  border-radius: 18px;
+}
+</style>

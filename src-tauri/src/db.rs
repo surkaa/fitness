@@ -15,6 +15,16 @@ pub struct Routine {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LastActiveRoutine {
+    pub routine_id: i32,
+    pub routine_name: String,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    #[specta(type = f64)]
+    pub last_trained_at: DateTime<Utc>,
+}
+
 // 动作 (比如: "杠铃卧推", 包含单位配置)
 #[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +41,8 @@ pub struct Exercise {
     pub note: Option<String>,
     /// 记录时的单位 'kg', 'lb', 'plate' (多少片)
     pub unit: String,
+    /// 是否已添加器械照片
+    pub has_image: bool,
 }
 
 // 记录 (具体每一次的重量)
@@ -75,6 +87,38 @@ pub struct DailyExerciseCount {
     pub day: i32,
     /// 当天训练过的动作数量
     pub count: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct DayExerciseRecords {
+    pub exercise: Exercise,
+    pub routine_name: String,
+    pub records: Vec<Record>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ExerciseImage {
+    pub mime_type: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, FromRow)]
+struct DayTrainingRow {
+    exercise_id: i32,
+    routine_id: i32,
+    exercise_name: String,
+    target_sets: i32,
+    target_reps: String,
+    note: Option<String>,
+    unit: String,
+    has_image: bool,
+    routine_name: String,
+    record_id: i32,
+    created_at: DateTime<Utc>,
+    weight: f64,
+    reps: Option<i32>,
 }
 
 pub struct Database {
@@ -142,6 +186,17 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS exercise_images (
+                    exercise_id INTEGER PRIMARY KEY,
+                    mime_type TEXT NOT NULL,
+                    bytes BLOB NOT NULL,
+                    FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+                );",
+        )
+        .execute(&self.pool)
+        .await?;
+
         // 记录表
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS records (
@@ -163,6 +218,14 @@ impl Database {
     pub async fn get_routines(&self) -> Result<Vec<Routine>, sqlx::Error> {
         sqlx::query_as::<_, Routine>("SELECT * FROM routines ORDER BY id")
             .fetch_all(&self.pool)
+            .await
+    }
+
+    /// 获取单个轮次
+    pub async fn get_routine(&self, routine_id: i32) -> Result<Option<Routine>, sqlx::Error> {
+        sqlx::query_as::<_, Routine>("SELECT * FROM routines WHERE id = ?")
+            .bind(routine_id)
+            .fetch_optional(&self.pool)
             .await
     }
 
@@ -204,10 +267,24 @@ impl Database {
 
     /// 获取某个轮次下的所有动作
     pub async fn get_exercises(&self, routine_id: i32) -> Result<Vec<Exercise>, sqlx::Error> {
-        sqlx::query_as::<_, Exercise>("SELECT * FROM exercises WHERE routine_id = ? ORDER BY id")
-            .bind(routine_id)
-            .fetch_all(&self.pool)
-            .await
+        sqlx::query_as::<_, Exercise>(
+            "SELECT
+                e.id,
+                e.routine_id,
+                e.name,
+                e.target_sets,
+                e.target_reps,
+                e.note,
+                e.unit,
+                CASE WHEN ei.exercise_id IS NULL THEN FALSE ELSE TRUE END AS has_image
+             FROM exercises e
+             LEFT JOIN exercise_images ei ON ei.exercise_id = e.id
+             WHERE e.routine_id = ?
+             ORDER BY e.id",
+        )
+        .bind(routine_id)
+        .fetch_all(&self.pool)
+        .await
     }
 
     /// 添加动作
@@ -238,6 +315,11 @@ impl Database {
 
     /// 删除动作
     pub async fn delete_exercise(&self, exercise_id: i32) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM exercise_images WHERE exercise_id = ?")
+            .bind(exercise_id)
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query("DELETE FROM exercises WHERE id = ?")
             .bind(exercise_id)
             .execute(&self.pool)
@@ -267,6 +349,42 @@ impl Database {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    /// 保存动作照片
+    pub async fn save_exercise_image(
+        &self,
+        exercise_id: i32,
+        mime_type: &str,
+        bytes: &[u8],
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO exercise_images (exercise_id, mime_type, bytes)
+             VALUES (?, ?, ?)
+             ON CONFLICT(exercise_id) DO UPDATE SET
+                mime_type = excluded.mime_type,
+                bytes = excluded.bytes",
+        )
+        .bind(exercise_id)
+        .bind(mime_type)
+        .bind(bytes)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// 获取动作照片
+    pub async fn get_exercise_image(
+        &self,
+        exercise_id: i32,
+    ) -> Result<Option<ExerciseImage>, sqlx::Error> {
+        sqlx::query_as::<_, ExerciseImage>(
+            "SELECT mime_type, bytes FROM exercise_images WHERE exercise_id = ?",
+        )
+        .bind(exercise_id)
+        .fetch_optional(&self.pool)
+        .await
     }
 
     /// 记录一次数据
@@ -355,29 +473,20 @@ impl Database {
         })
     }
 
-    /// 获取某个动作的常用 reps 值（最近 N 条记录中非空的、去重后的 reps）
+    /// 获取某个动作的常用 reps 值（按所有历史记录中的出现频率排序）
     pub async fn get_common_reps(&self, exercise_id: i32) -> Result<Vec<i32>, sqlx::Error> {
-        // 查询最近 50 条记录中非空的 reps，按出现频率降序，取前 5 个不同的值
-        // 也可以简单地取所有不重复的 reps（限制数量）
-        let reps = sqlx::query_scalar::<_, Option<i32>>(
+        let reps = sqlx::query_scalar::<_, i32>(
             "SELECT reps FROM records
              WHERE exercise_id = ? AND reps IS NOT NULL
-             ORDER BY created_at DESC LIMIT 50",
+             GROUP BY reps
+             ORDER BY COUNT(*) DESC, reps ASC
+             LIMIT 5",
         )
         .bind(exercise_id)
         .fetch_all(&self.pool)
         .await?;
 
-        // 提取非空值，去重，限制最多 6 个，并按数值排序（可选）
-        let mut unique: Vec<i32> = reps
-            .into_iter()
-            .flatten() // 过滤掉 None
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-        unique.sort(); // 按数值升序，更整齐
-        unique.truncate(6); // 最多显示 6 个候选
-        Ok(unique)
+        Ok(reps)
     }
 
     /// 给一个动作的记录数据倍增和添加常量，用于变更记录方式（记录片数=>记录kg等等）
@@ -426,10 +535,23 @@ impl Database {
         // 获取动作信息
         let mut exercises: Vec<Exercise> = Vec::new();
         for exercise_id in exercise_ids {
-            let exercise = sqlx::query_as::<_, Exercise>("SELECT * FROM exercises WHERE id = ?")
-                .bind(exercise_id)
-                .fetch_one(&self.pool)
-                .await?;
+            let exercise = sqlx::query_as::<_, Exercise>(
+                "SELECT
+                    e.id,
+                    e.routine_id,
+                    e.name,
+                    e.target_sets,
+                    e.target_reps,
+                    e.note,
+                    e.unit,
+                    CASE WHEN ei.exercise_id IS NULL THEN FALSE ELSE TRUE END AS has_image
+                 FROM exercises e
+                 LEFT JOIN exercise_images ei ON ei.exercise_id = e.id
+                 WHERE e.id = ?",
+            )
+            .bind(exercise_id)
+            .fetch_one(&self.pool)
+            .await?;
             exercises.push(exercise);
         }
 
@@ -475,6 +597,91 @@ impl Database {
         .bind(format!("{:04}-{:02}", year, month))
         .fetch_all(&self.pool)
         .await
+    }
+
+    /// 获取最近训练过的轮次
+    pub async fn get_last_active_routine(&self) -> Result<Option<LastActiveRoutine>, sqlx::Error> {
+        sqlx::query_as::<_, LastActiveRoutine>(
+            "SELECT
+                rt.id AS routine_id,
+                rt.name AS routine_name,
+                r.created_at AS last_trained_at
+            FROM records r
+            JOIN exercises e ON r.exercise_id = e.id
+            JOIN routines rt ON e.routine_id = rt.id
+            ORDER BY r.created_at DESC, r.id DESC
+            LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await
+    }
+
+    /// 获取某一天训练过的动作以及对应记录
+    pub async fn get_day_training_details(
+        &self,
+        day: &str,
+    ) -> Result<Vec<DayExerciseRecords>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, DayTrainingRow>(
+            "SELECT
+                e.id AS exercise_id,
+                e.routine_id AS routine_id,
+                e.name AS exercise_name,
+                e.target_sets AS target_sets,
+                e.target_reps AS target_reps,
+                e.note AS note,
+                e.unit AS unit,
+                CASE WHEN ei.exercise_id IS NULL THEN FALSE ELSE TRUE END AS has_image,
+                rt.name AS routine_name,
+                r.id AS record_id,
+                r.created_at AS created_at,
+                r.weight AS weight,
+                r.reps AS reps
+            FROM records r
+            JOIN exercises e ON r.exercise_id = e.id
+            LEFT JOIN exercise_images ei ON ei.exercise_id = e.id
+            JOIN routines rt ON e.routine_id = rt.id
+            WHERE strftime('%Y-%m-%d', r.created_at) = ?
+            ORDER BY rt.id, e.id, r.created_at DESC, r.id DESC",
+        )
+        .bind(day)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut grouped: Vec<DayExerciseRecords> = Vec::new();
+        let mut exercise_indexes = std::collections::HashMap::<i32, usize>::new();
+
+        for row in rows {
+            let record = Record {
+                id: row.record_id,
+                exercise_id: row.exercise_id,
+                created_at: row.created_at,
+                weight: row.weight,
+                reps: row.reps,
+            };
+
+            if let Some(index) = exercise_indexes.get(&row.exercise_id) {
+                grouped[*index].records.push(record);
+                continue;
+            }
+
+            exercise_indexes.insert(row.exercise_id, grouped.len());
+            grouped.push(DayExerciseRecords {
+                exercise: Exercise {
+                    id: row.exercise_id,
+                    routine_id: row.routine_id,
+                    name: row.exercise_name,
+                    target_sets: row.target_sets,
+                    target_reps: row.target_reps,
+                    note: row.note,
+                    unit: row.unit,
+                    has_image: row.has_image,
+                },
+                routine_name: row.routine_name,
+                records: vec![record],
+            });
+        }
+
+        Ok(grouped)
     }
 }
 
@@ -748,5 +955,143 @@ mod tests {
 
         assert_eq!(daily_counts[2].day, 28);
         assert_eq!(daily_counts[2].count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_day_training_details() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        let chest_id = db.create_routine("胸部", "").await.unwrap();
+        let back_id = db.create_routine("背部", "").await.unwrap();
+        let bench_id = db
+            .add_exercise(chest_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+        let row_id = db
+            .add_exercise(back_id, "划船", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        let rec1 = db.add_record(bench_id, 80.0, Some(8)).await.unwrap();
+        let rec2 = db.add_record(bench_id, 75.0, Some(10)).await.unwrap();
+        let rec3 = db.add_record(row_id, 60.0, Some(12)).await.unwrap();
+
+        let update_time_query = "UPDATE records SET created_at = ? WHERE id = ?";
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 09:00:00")
+            .bind(rec1)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 08:00:00")
+            .bind(rec2)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 18:00:00")
+            .bind(rec3)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        let details = db.get_day_training_details("2026-04-16").await.unwrap();
+
+        assert_eq!(details.len(), 2);
+        assert_eq!(details[0].exercise.name, "卧推");
+        assert_eq!(details[0].records.len(), 2);
+        assert_eq!(details[0].records[0].weight, 80.0);
+        assert_eq!(details[1].exercise.name, "划船");
+        assert_eq!(details[1].routine_name, "背部");
+        assert_eq!(details[1].records.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_last_active_routine() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        assert!(db.get_last_active_routine().await.unwrap().is_none());
+
+        let chest_id = db.create_routine("胸部", "").await.unwrap();
+        let leg_id = db.create_routine("腿部", "").await.unwrap();
+        let bench_id = db
+            .add_exercise(chest_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+        let squat_id = db
+            .add_exercise(leg_id, "深蹲", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        let rec1 = db.add_record(bench_id, 80.0, Some(8)).await.unwrap();
+        let rec2 = db.add_record(squat_id, 100.0, Some(5)).await.unwrap();
+        let update_time_query = "UPDATE records SET created_at = ? WHERE id = ?";
+
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 08:00:00")
+            .bind(rec1)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 18:00:00")
+            .bind(rec2)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        let last_active = db.get_last_active_routine().await.unwrap().unwrap();
+        assert_eq!(last_active.routine_id, leg_id);
+        assert_eq!(last_active.routine_name, "腿部");
+    }
+
+    #[tokio::test]
+    async fn test_get_common_reps_orders_by_frequency() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        let routine_id = db.create_routine("胸部", "").await.unwrap();
+        let exercise_id = db
+            .add_exercise(routine_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        for reps in [10, 10, 10, 8, 8, 12, 12, 12, 12, 6, 6, 5, 4] {
+            db.add_record(exercise_id, 60.0, Some(reps)).await.unwrap();
+        }
+
+        let common_reps = db.get_common_reps(exercise_id).await.unwrap();
+        assert_eq!(common_reps, vec![12, 10, 6, 8, 4]);
+    }
+
+    #[tokio::test]
+    async fn test_save_exercise_image_marks_exercise() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        let routine_id = db.create_routine("胸部", "").await.unwrap();
+        let exercise_id = db
+            .add_exercise(routine_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        db.save_exercise_image(exercise_id, "image/jpeg", &[1, 2, 3, 4])
+            .await
+            .unwrap();
+
+        let exercises = db.get_exercises(routine_id).await.unwrap();
+        assert_eq!(exercises.len(), 1);
+        assert!(exercises[0].has_image);
+
+        let image = db.get_exercise_image(exercise_id).await.unwrap().unwrap();
+        assert_eq!(image.mime_type, "image/jpeg");
+        assert_eq!(image.bytes, vec![1, 2, 3, 4]);
     }
 }

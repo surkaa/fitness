@@ -1,4 +1,6 @@
-use crate::db::{DailyExerciseCount, ExportData};
+use crate::db::{
+    DailyExerciseCount, DayExerciseRecords, ExerciseImage, ExportData, LastActiveRoutine, Routine,
+};
 use chrono::{DateTime, Utc};
 use std::fs;
 use tauri::{AppHandle, Manager, State};
@@ -11,6 +13,19 @@ mod db;
 #[specta::specta]
 async fn get_routines(state: State<'_, db::Database>) -> Result<Vec<db::Routine>, String> {
     state.get_routines().await.map_err(|e| e.to_string())
+}
+
+/// 获取单个轮次
+#[tauri::command]
+#[specta::specta]
+async fn get_routine(
+    state: State<'_, db::Database>,
+    routine_id: i32,
+) -> Result<Option<Routine>, String> {
+    state
+        .get_routine(routine_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 创建轮次
@@ -107,6 +122,32 @@ async fn update_exercise(
 ) -> Result<(), String> {
     state
         .update_exercise(exercise_id, &name, sets, &reps, &note, &unit)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn save_exercise_image(
+    state: State<'_, db::Database>,
+    exercise_id: i32,
+    mime_type: String,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    state
+        .save_exercise_image(exercise_id, &mime_type, &bytes)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn get_exercise_image(
+    state: State<'_, db::Database>,
+    exercise_id: i32,
+) -> Result<Option<ExerciseImage>, String> {
+    state
+        .get_exercise_image(exercise_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -211,7 +252,6 @@ async fn export_some_data(
         .map_err(|e| e.to_string())
 }
 
-
 // 获取某年某月下每天练了几个动作
 #[tauri::command]
 #[specta::specta]
@@ -222,6 +262,29 @@ async fn get_daily_exercise_count(
 ) -> Result<Vec<DailyExerciseCount>, String> {
     state
         .get_daily_exercise_count(year, month)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn get_day_training_details(
+    state: State<'_, db::Database>,
+    day: String,
+) -> Result<Vec<DayExerciseRecords>, String> {
+    state
+        .get_day_training_details(&day)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn get_last_active_routine(
+    state: State<'_, db::Database>,
+) -> Result<Option<LastActiveRoutine>, String> {
+    state
+        .get_last_active_routine()
         .await
         .map_err(|e| e.to_string())
 }
@@ -269,6 +332,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     let builder =
         tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
             get_routines,
+            get_routine,
             create_routine,
             delete_routine,
             update_routine,
@@ -276,6 +340,8 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             add_exercise,
             delete_exercise,
             update_exercise,
+            save_exercise_image,
+            get_exercise_image,
             add_record,
             delete_record,
             get_all_records,
@@ -288,6 +354,8 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             transform_records,
             export_some_data,
             get_daily_exercise_count,
+            get_day_training_details,
+            get_last_active_routine,
         ]);
 
     #[cfg(debug_assertions)]

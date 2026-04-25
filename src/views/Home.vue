@@ -7,9 +7,8 @@
 
     <div class="calendar-toolbar row items-center justify-between q-mb-md">
       <div>
-        <div class="text-caption text-grey-7">月视图</div>
         <div class="text-subtitle1 text-weight-medium">
-          {{ activeDayCount }} 天有训练，状态按当天动作数分档
+          训练了 <strong>{{ activeDayCount }}</strong> 天，共 <strong>{{ totalExerciseCount }}</strong> 个动作
         </div>
       </div>
 
@@ -20,14 +19,35 @@
       </div>
     </div>
 
-    <div class="legend row q-col-gutter-sm q-mb-md">
-      <div class="col-6 col-sm-auto" v-for="item in legendItems" :key="item.label">
+    <div class="legend q-mb-md">
+      <div class="legend-col" v-for="item in legendItems" :key="item.label">
         <div class="legend-item row items-center no-wrap">
           <span class="legend-swatch" :class="item.className"/>
           <span class="text-caption">{{ item.label }}</span>
         </div>
       </div>
     </div>
+
+    <section v-if="showContinuePanel" class="continue-panel q-mb-md">
+      <div class="row items-center justify-between q-col-gutter-md">
+        <div class="col">
+          <div class="text-caption text-grey-7">最近训练</div>
+          <div class="text-subtitle1 text-weight-medium">{{ lastActiveRoutine?.routineName || '无' }}</div>
+          <div class="text-caption text-grey-7 q-mt-xs">
+            上次训练：{{ formatRecordDate(lastActiveRoutine?.lastTrainedAt || 0) }}
+          </div>
+        </div>
+        <div class="col-auto">
+          <q-btn
+              unelevated
+              color="primary"
+              icon="play_arrow"
+              label="继续上次训练"
+              @click="continueLastTraining"
+          />
+        </div>
+      </div>
+    </section>
 
     <div
         ref="viewportRef"
@@ -39,7 +59,12 @@
         @pointerleave="handlePointerLeave"
     >
       <div class="calendar-track" :style="trackStyle">
-        <section v-for="panelDate in monthPanels" :key="monthKey(panelDate)" class="calendar-panel">
+        <section
+            v-for="panelDate in monthPanels"
+            :key="monthKey(panelDate)"
+            class="calendar-panel"
+            :class="`weeks-${getWeekCount(panelDate)}`"
+        >
           <div class="weekdays">
             <div v-for="weekday in weekdays" :key="weekday" class="weekday-cell">
               {{ weekday }}
@@ -64,17 +89,85 @@
         </section>
       </div>
     </div>
+
+    <section class="day-detail-panel q-mt-md">
+      <div class="row items-center justify-between q-mb-sm">
+        <div>
+          <div class="text-caption text-grey-7">当天训练</div>
+          <div class="text-subtitle1 text-weight-medium">{{ selectedDayTitle }}</div>
+        </div>
+        <div v-if="selectedDayDetails.length" class="text-caption text-grey-7">
+          {{ selectedDayDetails.length }} 个动作
+        </div>
+      </div>
+
+      <div v-if="dayDetailsLoading" class="detail-placeholder">
+        正在加载当天记录...
+      </div>
+      <div v-else-if="!selectedDateKey" class="detail-placeholder">
+        点击上方日期查看当天训练内容
+      </div>
+      <div v-else-if="selectedDayDetails.length === 0" class="detail-placeholder">
+        这一天没有训练记录
+      </div>
+      <div v-else class="exercise-detail-list">
+        <article
+            v-for="item in selectedDayDetails"
+            :key="item.exercise.id"
+            class="exercise-detail-item"
+            :class="{'is-expanded': expandedExerciseId === item.exercise.id}"
+        >
+          <button
+              type="button"
+              class="exercise-summary"
+              @click="toggleExpandedExercise(item.exercise.id)"
+          >
+            <div class="exercise-summary-main">
+              <div class="text-subtitle2 text-weight-medium">{{ item.exercise.name }}</div>
+              <div class="text-caption text-grey-7">
+                {{ item.routineName }} · {{ item.records.length }} 组 · {{ formatUnit(item.exercise.unit) }}
+              </div>
+            </div>
+            <q-icon
+                :name="expandedExerciseId === item.exercise.id ? 'expand_less' : 'expand_more'"
+                size="20px"
+                color="grey-7"
+            />
+          </button>
+
+          <transition name="record-expand">
+            <div v-if="expandedExerciseId === item.exercise.id" class="exercise-records">
+              <div
+                  v-for="record in item.records"
+                  :key="record.id"
+                  class="exercise-record-row"
+              >
+                <div class="text-body2 text-weight-medium">
+                  {{ record.weight }} {{ formatUnit(item.exercise.unit) }}
+                  <span v-if="record.reps" class="text-grey-7"> · {{ record.reps }} 次</span>
+                </div>
+                <div class="text-caption text-grey-7">
+                  {{ formatRecordDate(record.createdAt) }}
+                </div>
+              </div>
+            </div>
+          </transition>
+        </article>
+      </div>
+    </section>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue';
 import {useRouter} from "vue-router";
-import {useQuasar} from "quasar";
+import {date, useQuasar} from "quasar";
 import Header from "../components/Header.vue";
 import api from "../utils/api.ts";
-import {DailyExerciseCount} from "../bindings.ts";
+import {DailyExerciseCount, DayExerciseRecords, LastActiveRoutine} from "../bindings.ts";
 import {HeaderPrimaryAction} from "../types.ts";
+import {formatRecordDate} from "../utils/format.ts";
+import {formatUnit} from "../utils/unitConvert.ts";
 
 type CalendarCell = {
   date: Date;
@@ -90,6 +183,7 @@ type CalendarCell = {
 type MonthStats = {
   counts: Record<number, number>;
   activeDayCount: number;
+  totalExerciseCount: number;
 };
 
 const router = useRouter();
@@ -98,13 +192,17 @@ const $q = useQuasar();
 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 const legendItems = [
   {label: '未训练', className: 'level-0'},
-  {label: '1-3 个动作', className: 'level-1'},
-  {label: '4-5 个动作', className: 'level-2'},
-  {label: '6+ 个动作', className: 'level-3'},
+  {label: '1-3 动作', className: 'level-1'},
+  {label: '4-5 动作', className: 'level-2'},
+  {label: '6+ 动作', className: 'level-3'},
 ];
 
 const currentMonth = ref(startOfMonth(new Date()));
 const selectedDateKey = ref(formatDateKey(new Date()));
+const selectedDayDetails = ref<DayExerciseRecords[]>([]);
+const dayDetailsLoading = ref(false);
+const expandedExerciseId = ref<number | null>(null);
+const lastActiveRoutine = ref<LastActiveRoutine | null>(null);
 const monthCache = reactive<Record<string, MonthStats | undefined>>({});
 const loadingMonths = reactive<Record<string, boolean>>({});
 
@@ -131,6 +229,17 @@ const monthPanels = computed(() => ([
 
 const currentMonthStats = computed(() => monthCache[monthKey(currentMonth.value)] || emptyMonthStats());
 const activeDayCount = computed(() => currentMonthStats.value.activeDayCount);
+const totalExerciseCount = computed(() => currentMonthStats.value.totalExerciseCount);
+const showContinuePanel = computed(() => {
+  if (!lastActiveRoutine.value) return false;
+  const yesterday = date.subtractFromDate(new Date(), {days: 1});
+  return !date.isSameDate(new Date(lastActiveRoutine.value.lastTrainedAt), yesterday, 'day');
+});
+const selectedDayTitle = computed(() => {
+  if (!selectedDateKey.value) return '未选择日期';
+  const parsed = new Date(`${selectedDateKey.value}T00:00:00`);
+  return date.formatDate(parsed, 'YYYY年M月D日');
+});
 
 const trackStyle = computed(() => {
   const transition = dragState.animating ? 'transform 240ms ease' : 'none';
@@ -144,6 +253,7 @@ function emptyMonthStats(): MonthStats {
   return {
     counts: {},
     activeDayCount: 0,
+    totalExerciseCount: 0,
   };
 }
 
@@ -169,6 +279,11 @@ function formatDateKey(source: Date) {
 
 function getMonthDays(source: Date) {
   return new Date(source.getFullYear(), source.getMonth() + 1, 0).getDate();
+}
+
+function getWeekCount(source: Date) {
+  const firstDay = new Date(source.getFullYear(), source.getMonth(), 1).getDay();
+  return Math.ceil((firstDay + getMonthDays(source)) / 7);
 }
 
 function getLevel(count: number) {
@@ -236,10 +351,12 @@ async function loadMonth(source: Date) {
       acc[item.day] = item.count;
       return acc;
     }, {});
+    const totalExerciseCount = rows.reduce((sum, item: DailyExerciseCount) => sum + item.count, 0);
 
     monthCache[key] = {
       counts,
       activeDayCount: rows.length,
+      totalExerciseCount,
     };
   } catch (e) {
     monthCache[key] = emptyMonthStats();
@@ -257,15 +374,54 @@ async function preloadWindow(anchor: Date) {
   ]);
 }
 
+async function loadLastActiveRoutine() {
+  try {
+    lastActiveRoutine.value = await api.getLastActiveRoutine();
+  } catch (e) {
+    lastActiveRoutine.value = null;
+    $q.notify({type: 'negative', message: `加载最近训练失败: ${e}`});
+  }
+}
+
+async function loadDayTrainingDetails(dateKey: string) {
+  dayDetailsLoading.value = true;
+  expandedExerciseId.value = null;
+  try {
+    selectedDayDetails.value = await api.getDayTrainingDetails(dateKey);
+  } catch (e) {
+    selectedDayDetails.value = [];
+    $q.notify({type: 'negative', message: `加载当天训练失败: ${e}`});
+  } finally {
+    dayDetailsLoading.value = false;
+  }
+}
+
 function goToToday() {
   currentMonth.value = startOfMonth(new Date());
   selectedDateKey.value = formatDateKey(new Date());
   preloadWindow(currentMonth.value);
+  loadDayTrainingDetails(selectedDateKey.value);
+}
+
+function continueLastTraining() {
+  if (!lastActiveRoutine.value) return;
+  router.push({
+    name: 'RoutineDetail',
+    params: {id: lastActiveRoutine.value.routineId},
+    state: {
+      name: lastActiveRoutine.value.routineName
+    }
+  });
 }
 
 function handleDayClick(cell: CalendarCell) {
   if (!cell.inCurrentMonth) return;
   selectedDateKey.value = cell.dateKey;
+  loadDayTrainingDetails(cell.dateKey);
+}
+
+function toggleExpandedExercise(exerciseId: number) {
+  expandedExerciseId.value = expandedExerciseId.value === exerciseId ? null : exerciseId;
 }
 
 function handlePointerDown(event: PointerEvent) {
@@ -331,6 +487,9 @@ function animateToMonth(direction: -1 | 1) {
   window.setTimeout(async () => {
     currentMonth.value = addMonths(currentMonth.value, direction);
     await preloadWindow(currentMonth.value);
+    selectedDateKey.value = '';
+    selectedDayDetails.value = [];
+    expandedExerciseId.value = null;
 
     dragState.animating = false;
     dragState.offsetX = 0;
@@ -339,6 +498,8 @@ function animateToMonth(direction: -1 | 1) {
 
 onMounted(() => {
   preloadWindow(currentMonth.value);
+  loadDayTrainingDetails(selectedDateKey.value);
+  loadLastActiveRoutine();
 });
 </script>
 
@@ -357,9 +518,25 @@ onMounted(() => {
   box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
 }
 
-.legend-item {
+.continue-panel {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding: 6px 10px;
+}
+
+.legend-item {
+  width: 100%;
+  gap: 8px;
+  justify-content: center;
+  padding: 6px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
 }
@@ -390,8 +567,85 @@ onMounted(() => {
 .calendar-viewport {
   overflow: hidden;
   touch-action: pan-y;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
+}
+
+.day-detail-panel {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.detail-placeholder {
+  padding: 18px 0;
+  color: #5f6f82;
+  font-size: 13px;
+}
+
+.exercise-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exercise-detail-item {
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 251, 255, 0.92);
+  overflow: hidden;
+  padding: 6px 12px;
+}
+
+.exercise-detail-item.is-expanded {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.exercise-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.exercise-summary-main {
+  min-width: 0;
+}
+
+.exercise-records {
+  border-top: 1px solid rgba(27, 42, 58, 0.08);
+  padding: 4px 4px 10px;
+}
+
+.exercise-record-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.exercise-record-row + .exercise-record-row {
+  border-top: 1px dashed rgba(27, 42, 58, 0.08);
+}
+
+.record-expand-enter-active,
+.record-expand-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+  transform-origin: top;
+}
+
+.record-expand-enter-from,
+.record-expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .calendar-track {
@@ -425,8 +679,11 @@ onMounted(() => {
 }
 
 .days-grid {
-  grid-auto-rows: minmax(72px, 1fr);
-  height: calc(100% - 34px);
+  grid-auto-rows: 58px;
+}
+
+.calendar-panel.weeks-5 .days-grid {
+  grid-auto-rows: 64px;
 }
 
 .day-cell {
@@ -490,13 +747,38 @@ onMounted(() => {
     padding: 12px;
   }
 
+  .continue-panel {
+    padding: 12px;
+  }
+
+  .legend {
+    gap: 6px;
+  }
+
+  .legend-item {
+    padding: 5px 6px;
+  }
+
   .days-grid {
     gap: 6px;
-    grid-auto-rows: minmax(64px, 1fr);
+    grid-auto-rows: 50px;
+  }
+
+  .calendar-panel.weeks-5 .days-grid {
+    grid-auto-rows: 56px;
   }
 
   .day-cell {
     padding: 8px;
+  }
+
+  .day-detail-panel {
+    padding: 12px;
+  }
+
+  .exercise-detail-item {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 }
 </style>
