@@ -9,7 +9,7 @@
       <div>
         <div class="text-caption text-grey-7">月视图</div>
         <div class="text-subtitle1 text-weight-medium">
-          {{ activeDayCount }} 天有训练，状态按当天动作数分档
+          {{ activeDayCount }} 天有训练
         </div>
       </div>
 
