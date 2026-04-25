@@ -7,9 +7,8 @@
 
     <div class="calendar-toolbar row items-center justify-between q-mb-md">
       <div>
-        <div class="text-caption text-grey-7">月视图</div>
         <div class="text-subtitle1 text-weight-medium">
-          训练了 {{ activeDayCount }} 天，共做了 {{ totalExerciseCount }} 个动作
+          训练了 <strong>{{ activeDayCount }}</strong> 天，共 <strong>{{ totalExerciseCount }}</strong> 个动作
         </div>
       </div>
 
