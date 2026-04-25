@@ -34,6 +34,7 @@
               dense
               flat
               color="primary"
+              class="common-rep-btn"
               :label="rep + '次'"
               size="sm"
               @click="quickInput(rep)"
@@ -135,3 +136,9 @@ async function handleSubmit() {
   }
 }
 </script>
+
+<style scoped>
+.common-rep-btn {
+  font-size: 13px;
+}
+</style>

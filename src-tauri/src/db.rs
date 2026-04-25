@@ -397,29 +397,20 @@ impl Database {
         })
     }
 
-    /// 获取某个动作的常用 reps 值（最近 N 条记录中非空的、去重后的 reps）
+    /// 获取某个动作的常用 reps 值（按所有历史记录中的出现频率排序）
     pub async fn get_common_reps(&self, exercise_id: i32) -> Result<Vec<i32>, sqlx::Error> {
-        // 查询最近 50 条记录中非空的 reps，按出现频率降序，取前 5 个不同的值
-        // 也可以简单地取所有不重复的 reps（限制数量）
-        let reps = sqlx::query_scalar::<_, Option<i32>>(
+        let reps = sqlx::query_scalar::<_, i32>(
             "SELECT reps FROM records
              WHERE exercise_id = ? AND reps IS NOT NULL
-             ORDER BY created_at DESC LIMIT 50",
+             GROUP BY reps
+             ORDER BY COUNT(*) DESC, reps ASC
+             LIMIT 5",
         )
         .bind(exercise_id)
         .fetch_all(&self.pool)
         .await?;
 
-        // 提取非空值，去重，限制最多 6 个，并按数值排序（可选）
-        let mut unique: Vec<i32> = reps
-            .into_iter()
-            .flatten() // 过滤掉 None
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-        unique.sort(); // 按数值升序，更整齐
-        unique.truncate(6); // 最多显示 6 个候选
-        Ok(unique)
+        Ok(reps)
     }
 
     /// 给一个动作的记录数据倍增和添加常量，用于变更记录方式（记录片数=>记录kg等等）
@@ -965,5 +956,25 @@ mod tests {
         let last_active = db.get_last_active_routine().await.unwrap().unwrap();
         assert_eq!(last_active.routine_id, leg_id);
         assert_eq!(last_active.routine_name, "腿部");
+    }
+
+    #[tokio::test]
+    async fn test_get_common_reps_orders_by_frequency() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        let routine_id = db.create_routine("胸部", "").await.unwrap();
+        let exercise_id = db
+            .add_exercise(routine_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        for reps in [10, 10, 10, 8, 8, 12, 12, 12, 12, 6, 6, 5, 4] {
+            db.add_record(exercise_id, 60.0, Some(reps)).await.unwrap();
+        }
+
+        let common_reps = db.get_common_reps(exercise_id).await.unwrap();
+        assert_eq!(common_reps, vec![12, 10, 8, 6, 4]);
     }
 }
