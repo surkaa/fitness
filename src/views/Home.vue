@@ -181,12 +181,13 @@ function getLevel(count: number) {
 function buildMonthGrid(source: Date): CalendarCell[] {
   const firstDay = new Date(source.getFullYear(), source.getMonth(), 1).getDay();
   const currentMonthDays = getMonthDays(source);
+  const totalCells = Math.ceil((firstDay + currentMonthDays) / 7) * 7;
   const previousMonth = addMonths(source, -1);
   const previousMonthDays = getMonthDays(previousMonth);
   const monthStats = monthCache[monthKey(source)] || emptyMonthStats();
   const cells: CalendarCell[] = [];
 
-  for (let index = 0; index < 42; index += 1) {
+  for (let index = 0; index < totalCells; index += 1) {
     const dayOffset = index - firstDay + 1;
     const isCurrentMonth = dayOffset > 0 && dayOffset <= currentMonthDays;
     const cellDate = isCurrentMonth
@@ -442,8 +443,9 @@ onMounted(() => {
 }
 
 .day-cell.is-outside {
-  background: rgba(255, 255, 255, 0.42);
-  color: rgba(95, 111, 130, 0.75);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(27, 42, 58, 0.04);
+  color: rgba(95, 111, 130, 0.42);
 }
 
 .day-cell.level-0:not(.is-outside) {
