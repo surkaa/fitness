@@ -135,7 +135,7 @@ const activeDayCount = computed(() => currentMonthStats.value.activeDayCount);
 const trackStyle = computed(() => {
   const transition = dragState.animating ? 'transform 240ms ease' : 'none';
   return {
-    transform: `translateX(calc(-100% + ${dragState.offsetX}px))`,
+    transform: `translateX(calc(-33.333333% + ${dragState.offsetX}px))`,
     transition,
   };
 });
@@ -400,8 +400,8 @@ onMounted(() => {
 }
 
 .calendar-panel {
-  width: 100%;
-  flex: 0 0 100%;
+  width: calc(100% / 3);
+  flex: 0 0 calc(100% / 3);
   min-width: 0;
 }
 
