@@ -19,8 +19,8 @@
       </div>
     </div>
 
-    <div class="legend row q-col-gutter-sm q-mb-md">
-      <div class="col-6 col-sm-auto" v-for="item in legendItems" :key="item.label">
+    <div class="legend q-mb-md">
+      <div class="legend-col" v-for="item in legendItems" :key="item.label">
         <div class="legend-item row items-center no-wrap">
           <span class="legend-swatch" :class="item.className"/>
           <span class="text-caption">{{ item.label }}</span>
@@ -526,9 +526,17 @@ onMounted(() => {
   box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
 }
 
-.legend-item {
+.legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding: 6px 10px;
+}
+
+.legend-item {
+  width: 100%;
+  gap: 8px;
+  justify-content: center;
+  padding: 6px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
 }
@@ -741,6 +749,14 @@ onMounted(() => {
 
   .continue-panel {
     padding: 12px;
+  }
+
+  .legend {
+    gap: 6px;
+  }
+
+  .legend-item {
+    padding: 5px 6px;
   }
 
   .days-grid {
