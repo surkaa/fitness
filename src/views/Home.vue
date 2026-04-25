@@ -9,7 +9,7 @@
       <div>
         <div class="text-caption text-grey-7">月视图</div>
         <div class="text-subtitle1 text-weight-medium">
-          训练了 {{ activeDayCount }} 天
+          训练了 {{ activeDayCount }} 天，共做了 {{ totalExerciseCount }} 个动作
         </div>
       </div>
 
@@ -161,6 +161,7 @@ type CalendarCell = {
 type MonthStats = {
   counts: Record<number, number>;
   activeDayCount: number;
+  totalExerciseCount: number;
 };
 
 const router = useRouter();
@@ -205,6 +206,7 @@ const monthPanels = computed(() => ([
 
 const currentMonthStats = computed(() => monthCache[monthKey(currentMonth.value)] || emptyMonthStats());
 const activeDayCount = computed(() => currentMonthStats.value.activeDayCount);
+const totalExerciseCount = computed(() => currentMonthStats.value.totalExerciseCount);
 const selectedDayTitle = computed(() => {
   if (!selectedDateKey.value) return '未选择日期';
   const parsed = new Date(`${selectedDateKey.value}T00:00:00`);
@@ -223,6 +225,7 @@ function emptyMonthStats(): MonthStats {
   return {
     counts: {},
     activeDayCount: 0,
+    totalExerciseCount: 0,
   };
 }
 
@@ -320,10 +323,12 @@ async function loadMonth(source: Date) {
       acc[item.day] = item.count;
       return acc;
     }, {});
+    const totalExerciseCount = rows.reduce((sum, item: DailyExerciseCount) => sum + item.count, 0);
 
     monthCache[key] = {
       counts,
       activeDayCount: rows.length,
+      totalExerciseCount,
     };
   } catch (e) {
     monthCache[key] = emptyMonthStats();
