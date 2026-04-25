@@ -12,7 +12,15 @@
       <div v-if="title" class="text-h5 q-ml-sm">{{ title }}</div>
       <slot name="left"/>
     </div>
-    <div>
+    <div class="row items-center q-gutter-sm">
+      <q-btn
+          v-if="primaryAction"
+          unelevated
+          color="primary"
+          :icon="primaryAction.icon"
+          :label="primaryAction.label"
+          @click="primaryAction.action"
+      />
       <q-btn flat round icon="more_vert" v-if="rightAction && rightAction.length">
         <q-menu>
           <q-list style="min-width: 150px">
@@ -31,13 +39,14 @@
 
 <script setup lang="ts">
 import {useRouter} from 'vue-router';
-import {HeaderRightAction} from "../types.ts";
+import {HeaderPrimaryAction, HeaderRightAction} from "../types.ts";
 
 const props = defineProps<{
   title?: string;
   showBack?: boolean;
   backAction?: () => void;
-  rightAction?: HeaderRightAction[]
+  rightAction?: HeaderRightAction[];
+  primaryAction?: HeaderPrimaryAction;
 }>();
 
 const router = useRouter();

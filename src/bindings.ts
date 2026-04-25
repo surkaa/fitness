@@ -196,7 +196,7 @@ async exportSomeData(startTime: string, endTime: string) : Promise<Result<Export
     else return { status: "error", error: e  as any };
 }
 },
-async getDailyExerciseCount(year: number, month: number) : Promise<Result<DailyRecordCount[], string>> {
+async getDailyExerciseCount(year: number, month: number) : Promise<Result<DailyExerciseCount[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_daily_exercise_count", { year, month }) };
 } catch (e) {
@@ -216,13 +216,13 @@ async getDailyExerciseCount(year: number, month: number) : Promise<Result<DailyR
 
 /** user-defined types **/
 
-export type DailyRecordCount = { 
+export type DailyExerciseCount = { 
 /**
- * 格式为 "YYYY-MM-DD"
+ * 当月中的第几天
  */
 day: number; 
 /**
- * 当天的记录总数
+ * 当天训练过的动作数量
  */
 count: number }
 export type Exercise = { id: number; routineId: number; 

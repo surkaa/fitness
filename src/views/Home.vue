@@ -1,264 +1,500 @@
 <template>
-  <q-page class="q-pa-md column">
-    <Header title="训练计划" :rightAction="rightAction"/>
+  <q-page class="calendar-page q-pa-md column no-wrap">
+    <Header
+        :title="monthTitle(currentMonth)"
+        :primaryAction="plansAction"
+    />
 
-    <div class="row q-col-gutter-md q-pb-xl" v-if="routines.length">
-      <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
-        <RoutineCard
-            :routine="r"
-            @click="goToRoutine(r)"
-            @delete="handleDelete(r.id)"
-            @edit="handleEdit(r.id)"
-        />
+    <div class="calendar-toolbar row items-center justify-between q-mb-md">
+      <div>
+        <div class="text-caption text-grey-7">月视图</div>
+        <div class="text-subtitle1 text-weight-medium">
+          {{ activeDayCount }} 天有训练，状态按当天动作数分档
+        </div>
+      </div>
+
+      <div class="row items-center q-gutter-sm">
+        <q-btn flat round icon="chevron_left" @click="goToPreviousMonth"/>
+        <q-btn flat round icon="today" @click="goToToday" />
+        <q-btn flat round icon="chevron_right" @click="goToNextMonth"/>
       </div>
     </div>
 
-    <div v-else-if="!loading" class="col flex flex-center column text-grey">
-      <q-icon name="fitness_center" size="64px"/>
-      <div class="q-mt-md text-h6" style="opacity: 0.7">
-        还没有训练计划
+    <div class="legend row q-col-gutter-sm q-mb-md">
+      <div class="col-6 col-sm-auto" v-for="item in legendItems" :key="item.label">
+        <div class="legend-item row items-center no-wrap">
+          <span class="legend-swatch" :class="item.className"/>
+          <span class="text-caption">{{ item.label }}</span>
+        </div>
       </div>
-      <div class="text-caption">点击右下角添加</div>
     </div>
 
-    <q-page-sticky position="bottom-right" :offset="[18, 18]">
-      <q-btn fab icon="add" color="primary" @click="showAddDialog = true"/>
-    </q-page-sticky>
-  </q-page>
-
-  <q-dialog v-model="showAddDialog" @hide="resetForm">
-    <q-card style="min-width: 350px">
-      <q-card-section>
-        <div class="text-h6">{{ isEditing ? '编辑训练计划' : '新建训练计划' }}</div>
-      </q-card-section>
-
-      <q-card-section class="q-pt-none">
-        <q-form @submit="handleSave" class="q-gutter-md">
-          <q-input
-              filled
-              v-model="formState.name"
-              label="计划名称"
-              :rules="[val => !!val || '名称不能为空']"
-              autofocus
-          />
-
-          <q-input
-              filled
-              v-model="formState.description"
-              label="描述"
-              type="textarea"
-              rows="3"
-          />
-
-          <div class="row justify-end q-gutter-sm q-mt-md">
-            <q-btn label="取消" flat color="primary" v-close-popup/>
-            <q-btn
-                :label="isEditing ? '保存' : '创建'"
-                type="submit"
-                color="primary"
-                :loading="submitting"
-            />
+    <div
+        ref="viewportRef"
+        class="calendar-viewport"
+        @pointerdown="handlePointerDown"
+        @pointermove="handlePointerMove"
+        @pointerup="handlePointerUp"
+        @pointercancel="handlePointerUp"
+        @pointerleave="handlePointerLeave"
+    >
+      <div class="calendar-track" :style="trackStyle">
+        <section v-for="panelDate in monthPanels" :key="monthKey(panelDate)" class="calendar-panel">
+          <div class="weekdays">
+            <div v-for="weekday in weekdays" :key="weekday" class="weekday-cell">
+              {{ weekday }}
+            </div>
           </div>
-        </q-form>
-      </q-card-section>
-    </q-card>
-  </q-dialog>
+
+          <div class="days-grid">
+            <button
+                v-for="cell in buildMonthGrid(panelDate)"
+                :key="cell.dateKey"
+                type="button"
+                class="day-cell"
+                :class="dayCellClasses(cell)"
+                @click="handleDayClick(cell)"
+            >
+              <span class="day-number">{{ cell.day }}</span>
+              <span v-if="cell.inCurrentMonth && cell.exerciseCount > 0" class="day-count">
+                {{ cell.exerciseCount }} 动
+              </span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </q-page>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue';
-import RoutineCard from '../components/RoutineCard.vue';
 import {useRouter} from "vue-router";
 import {useQuasar} from "quasar";
-import {open, save} from '@tauri-apps/plugin-dialog';
-import {readFile, writeFile} from '@tauri-apps/plugin-fs';
 import Header from "../components/Header.vue";
-import {Routine} from "../bindings.ts";
 import api from "../utils/api.ts";
+import {DailyExerciseCount} from "../bindings.ts";
+import {HeaderPrimaryAction} from "../types.ts";
+
+type CalendarCell = {
+  date: Date;
+  dateKey: string;
+  day: number;
+  inCurrentMonth: boolean;
+  exerciseCount: number;
+  level: number;
+  isToday: boolean;
+  isSelected: boolean;
+};
+
+type MonthStats = {
+  counts: Record<number, number>;
+  activeDayCount: number;
+};
 
 const router = useRouter();
 const $q = useQuasar();
 
-const routines = ref<Routine[]>([]);
-const loading = ref(false);
-const showAddDialog = ref(false);
-const submitting = ref(false);
+const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+const legendItems = [
+  {label: '未训练', className: 'level-0'},
+  {label: '1-3 个动作', className: 'level-1'},
+  {label: '4-5 个动作', className: 'level-2'},
+  {label: '6+ 个动作', className: 'level-3'},
+];
 
-// 记录当前正在编辑的 ID，如果为 null 则表示是新建模式
-const editingId = ref<number | null>(null);
-const isEditing = computed(() => editingId.value !== null);
+const currentMonth = ref(startOfMonth(new Date()));
+const selectedDateKey = ref(formatDateKey(new Date()));
+const monthCache = reactive<Record<string, MonthStats | undefined>>({});
+const loadingMonths = reactive<Record<string, boolean>>({});
 
-const formState = reactive({
-  name: '',
-  description: ''
+const viewportRef = ref<HTMLElement | null>(null);
+const dragState = reactive({
+  active: false,
+  pointerId: -1,
+  startX: 0,
+  offsetX: 0,
+  animating: false,
 });
 
-const rightAction = computed(() => [{
-  icon: 'download', label: '数据导出', action: handleExport
-}, {
-  icon: 'upload', label: '数据导入', action: handleImport
-}]);
+const plansAction = computed<HeaderPrimaryAction>(() => ({
+  icon: 'list_alt',
+  label: '训练计划',
+  action: () => router.push({name: 'Routines'})
+}));
 
-// 打开编辑弹窗
-function handleEdit(id: number) {
-  const target = routines.value.find(r => r.id === id);
-  if (!target) return;
+const monthPanels = computed(() => ([
+  addMonths(currentMonth.value, -1),
+  currentMonth.value,
+  addMonths(currentMonth.value, 1),
+]));
 
-  // 回填数据
-  editingId.value = id;
-  formState.name = target.name;
-  formState.description = target.description || '';
+const currentMonthStats = computed(() => monthCache[monthKey(currentMonth.value)] || emptyMonthStats());
+const activeDayCount = computed(() => currentMonthStats.value.activeDayCount);
 
-  showAddDialog.value = true;
+const trackStyle = computed(() => {
+  const transition = dragState.animating ? 'transform 240ms ease' : 'none';
+  return {
+    transform: `translateX(calc(-100% + ${dragState.offsetX}px))`,
+    transition,
+  };
+});
+
+function emptyMonthStats(): MonthStats {
+  return {
+    counts: {},
+    activeDayCount: 0,
+  };
 }
 
-// 统一保存入口 (创建/更新)
-async function handleSave() {
-  if (!formState.name) return;
+function startOfMonth(source: Date) {
+  return new Date(source.getFullYear(), source.getMonth(), 1);
+}
 
-  submitting.value = true;
+function addMonths(source: Date, offset: number) {
+  return new Date(source.getFullYear(), source.getMonth() + offset, 1);
+}
+
+function monthKey(source: Date) {
+  return `${source.getFullYear()}-${String(source.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthTitle(source: Date) {
+  return `${source.getFullYear()}年${source.getMonth() + 1}月`;
+}
+
+function formatDateKey(source: Date) {
+  return `${monthKey(source)}-${String(source.getDate()).padStart(2, '0')}`;
+}
+
+function getMonthDays(source: Date) {
+  return new Date(source.getFullYear(), source.getMonth() + 1, 0).getDate();
+}
+
+function getLevel(count: number) {
+  if (count >= 6) return 3;
+  if (count >= 4) return 2;
+  if (count >= 1) return 1;
+  return 0;
+}
+
+function buildMonthGrid(source: Date): CalendarCell[] {
+  const firstDay = new Date(source.getFullYear(), source.getMonth(), 1).getDay();
+  const currentMonthDays = getMonthDays(source);
+  const previousMonth = addMonths(source, -1);
+  const previousMonthDays = getMonthDays(previousMonth);
+  const monthStats = monthCache[monthKey(source)] || emptyMonthStats();
+  const cells: CalendarCell[] = [];
+
+  for (let index = 0; index < 42; index += 1) {
+    const dayOffset = index - firstDay + 1;
+    const isCurrentMonth = dayOffset > 0 && dayOffset <= currentMonthDays;
+    const cellDate = isCurrentMonth
+        ? new Date(source.getFullYear(), source.getMonth(), dayOffset)
+        : dayOffset <= 0
+            ? new Date(previousMonth.getFullYear(), previousMonth.getMonth(), previousMonthDays + dayOffset)
+            : new Date(source.getFullYear(), source.getMonth() + 1, dayOffset - currentMonthDays);
+
+    const exerciseCount = isCurrentMonth ? (monthStats.counts[cellDate.getDate()] || 0) : 0;
+    const dateKey = formatDateKey(cellDate);
+
+    cells.push({
+      date: cellDate,
+      dateKey,
+      day: cellDate.getDate(),
+      inCurrentMonth: isCurrentMonth,
+      exerciseCount,
+      level: isCurrentMonth ? getLevel(exerciseCount) : 0,
+      isToday: dateKey === formatDateKey(new Date()),
+      isSelected: dateKey === selectedDateKey.value,
+    });
+  }
+
+  return cells;
+}
+
+function dayCellClasses(cell: CalendarCell) {
+  return {
+    'is-outside': !cell.inCurrentMonth,
+    'is-today': cell.isToday,
+    'is-selected': cell.isSelected && cell.inCurrentMonth,
+    [`level-${cell.level}`]: cell.inCurrentMonth,
+  };
+}
+
+async function loadMonth(source: Date) {
+  const key = monthKey(source);
+  if (monthCache[key] || loadingMonths[key]) {
+    return;
+  }
+
+  loadingMonths[key] = true;
   try {
-    if (isEditing.value) {
-      await api.updateRoutine(editingId.value!, formState.name, formState.description);
+    const rows = await api.getDailyExerciseCount(source.getFullYear(), source.getMonth() + 1);
+    const counts = rows.reduce<Record<number, number>>((acc, item: DailyExerciseCount) => {
+      acc[item.day] = item.count;
+      return acc;
+    }, {});
 
-      // 更新本地列表
-      const index = routines.value.findIndex(r => r.id === editingId.value);
-      if (index !== -1) {
-        routines.value[index] = {
-          ...routines.value[index],
-          name: formState.name,
-          description: formState.description || null
-        };
-      }
-
-      $q.notify({type: 'positive', message: '计划已更新'});
-
-    } else {
-      const newId = await api.createRoutine(formState.name, formState.description);
-
-      routines.value.push({
-        id: newId,
-        name: formState.name,
-        description: formState.description || null
-      });
-
-      $q.notify({type: 'positive', message: '计划创建成功'});
-    }
-
-    showAddDialog.value = false;
+    monthCache[key] = {
+      counts,
+      activeDayCount: rows.length,
+    };
   } catch (e) {
-    $q.notify({type: 'negative', message: (isEditing.value ? '更新' : '创建') + '失败: ' + e});
+    monthCache[key] = emptyMonthStats();
+    $q.notify({type: 'negative', message: `加载 ${monthTitle(source)} 失败: ${e}`});
   } finally {
-    submitting.value = false;
+    loadingMonths[key] = false;
   }
 }
 
-// 重置表单
-function resetForm() {
-  editingId.value = null;
-  formState.name = '';
-  formState.description = '';
+async function preloadWindow(anchor: Date) {
+  await Promise.all([
+    loadMonth(addMonths(anchor, -1)),
+    loadMonth(anchor),
+    loadMonth(addMonths(anchor, 1)),
+  ]);
 }
 
-function goToRoutine(r: Routine) {
-  router.push({
-    name: 'RoutineDetail',
-    params: {id: r.id},
-    state: {
-      name: r.name
-    }
-  });
+function goToToday() {
+  currentMonth.value = startOfMonth(new Date());
+  selectedDateKey.value = formatDateKey(new Date());
+  preloadWindow(currentMonth.value);
 }
 
-function handleDelete(id: number) {
-  // 二次确认
-  $q.dialog({
-    title: '确认删除',
-    message: '确定要删除该计划吗？此操作不可撤销。',
-    cancel: true
-  }).onOk(() => {
-    api.deleteRoutine(id).then(() => {
-      routines.value = routines.value.filter(r => r.id !== id);
-      $q.notify({
-        type: 'positive',
-        message: '计划已删除'
-      });
-    })
-  });
+function handleDayClick(cell: CalendarCell) {
+  if (!cell.inCurrentMonth) return;
+  selectedDateKey.value = cell.dateKey;
 }
 
-async function handleExport() {
-  loading.value = true;
-  try {
-    // 调用系统原生的保存对话框
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = await save({
-      defaultPath: `fitness_backup_${timestamp}.db`,
-      filters: [{name: 'Database', extensions: ['db']}]
-    });
+function handlePointerDown(event: PointerEvent) {
+  if (dragState.animating) return;
+  dragState.active = true;
+  dragState.pointerId = event.pointerId;
+  dragState.startX = event.clientX;
+  dragState.offsetX = 0;
+  viewportRef.value?.setPointerCapture(event.pointerId);
+}
 
-    if (!filePath) return; // 用户取消了保存
+function handlePointerMove(event: PointerEvent) {
+  if (!dragState.active || event.pointerId !== dragState.pointerId) return;
+  dragState.offsetX = event.clientX - dragState.startX;
+}
 
-    // 向 Rust 请求数据库文件的完整字节
-    const dbBytes = await api.getDbBytes();
-
-    // 使用前端的 FS 插件直接写入
-    await writeFile(filePath, new Uint8Array(dbBytes));
-
-    $q.notify({
-      type: 'positive',
-      message: `导出成功！`,
-      timeout: 3000
-    });
-  } catch (e) {
-    $q.notify({type: 'negative', message: '导出失败: ' + e});
-  } finally {
-    loading.value = false;
+function handlePointerLeave(event: PointerEvent) {
+  if (!dragState.active) return;
+  if (event.pointerType === 'mouse') {
+    handlePointerUp(event);
   }
 }
 
-async function handleImport() {
-  try {
-    const selected = await open({
-      multiple: false,
-      filters: [{name: 'Database', extensions: ['db']}]
-    });
+function handlePointerUp(event: PointerEvent) {
+  if (!dragState.active || event.pointerId !== dragState.pointerId) return;
 
-    if (!selected) return;
-    const filePath = Array.isArray(selected) ? selected[0] : selected;
+  const width = viewportRef.value?.clientWidth || 1;
+  const threshold = Math.min(120, width * 0.22);
 
-    const fileBytes = await readFile(filePath);
-
-    $q.dialog({
-      title: '确认恢复',
-      message: '恢复将覆盖当前所有数据，且会自动重启应用。确定继续？',
-      cancel: true,
-      persistent: true
-    }).onOk(async () => {
-      loading.value = true;
-      try {
-        await api.importDbFromBytes(fileBytes);
-
-        // 成功导入后直接重启应用以加载新数据
-        $q.notify({type: 'positive', message: '恢复成功，应用即将重启'});
-
-        setTimeout(() => api.restartApp(), 1500);
-      } catch (e) {
-        $q.notify({type: 'negative', message: '恢复失败: ' + e});
-      } finally {
-        loading.value = false;
-      }
-    });
-  } catch (e) {
-    $q.notify({type: 'negative', message: '获取文件失败: ' + e});
+  if (Math.abs(dragState.offsetX) > threshold) {
+    animateToMonth(dragState.offsetX < 0 ? 1 : -1);
+  } else {
+    snapBack();
   }
+
+  dragState.active = false;
+  dragState.pointerId = -1;
 }
 
+function snapBack() {
+  dragState.animating = true;
+  dragState.offsetX = 0;
+  window.setTimeout(() => {
+    dragState.animating = false;
+  }, 240);
+}
+
+function goToPreviousMonth() {
+  animateToMonth(-1);
+}
+
+function goToNextMonth() {
+  animateToMonth(1);
+}
+
+function animateToMonth(direction: -1 | 1) {
+  if (dragState.animating) return;
+
+  const width = viewportRef.value?.clientWidth || 0;
+  dragState.animating = true;
+  dragState.offsetX = direction === 1 ? -width : width;
+
+  window.setTimeout(async () => {
+    currentMonth.value = addMonths(currentMonth.value, direction);
+    await preloadWindow(currentMonth.value);
+
+    dragState.animating = false;
+    dragState.offsetX = 0;
+  }, 240);
+}
 
 onMounted(() => {
-  loading.value = true;
-  api.getRoutines().then(list => {
-    routines.value = list;
-  }).finally(() => loading.value = false);
-})
+  preloadWindow(currentMonth.value);
+});
 </script>
+
+<style scoped>
+.calendar-page {
+  background:
+      radial-gradient(circle at top left, rgba(25, 118, 210, 0.12), transparent 28%),
+      linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
+.calendar-toolbar {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.legend-item {
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 42, 58, 0.08);
+}
+
+.legend-swatch.level-0 {
+  background: #edf1f5;
+}
+
+.legend-swatch.level-1 {
+  background: #a9d6b8;
+}
+
+.legend-swatch.level-2 {
+  background: #62b27a;
+}
+
+.legend-swatch.level-3 {
+  background: #215c3a;
+}
+
+.calendar-viewport {
+  overflow: hidden;
+  touch-action: pan-y;
+  flex: 1;
+  min-height: 0;
+}
+
+.calendar-track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+}
+
+.calendar-panel {
+  width: 100%;
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+.weekdays,
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weekdays {
+  margin-bottom: 10px;
+}
+
+.weekday-cell {
+  text-align: center;
+  color: #5f6f82;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.days-grid {
+  grid-auto-rows: minmax(72px, 1fr);
+  height: calc(100% - 34px);
+}
+
+.day-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1b2a3a;
+  text-align: left;
+}
+
+.day-cell.is-outside {
+  background: rgba(255, 255, 255, 0.42);
+  color: rgba(95, 111, 130, 0.75);
+}
+
+.day-cell.level-0:not(.is-outside) {
+  background: rgba(237, 241, 245, 0.96);
+}
+
+.day-cell.level-1 {
+  background: rgba(169, 214, 184, 0.95);
+}
+
+.day-cell.level-2 {
+  background: rgba(98, 178, 122, 0.95);
+  color: #16311f;
+}
+
+.day-cell.level-3 {
+  background: rgba(33, 92, 58, 0.96);
+  color: #f4fbf6;
+}
+
+.day-cell.is-selected {
+  box-shadow: inset 0 0 0 2px #f59f00;
+}
+
+.day-cell.is-today .day-number {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.day-number {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.day-count {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .calendar-toolbar {
+    padding: 12px;
+  }
+
+  .days-grid {
+    gap: 6px;
+    grid-auto-rows: minmax(64px, 1fr);
+  }
+
+  .day-cell {
+    padding: 8px;
+  }
+}
+</style>

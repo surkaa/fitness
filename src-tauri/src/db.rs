@@ -70,10 +70,10 @@ pub struct ExportData {
 
 #[derive(Debug, Serialize, Deserialize, FromRow, specta::Type, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DailyRecordCount {
-    /// 格式为 "YYYY-MM-DD"
+pub struct DailyExerciseCount {
+    /// 当月中的第几天
     pub day: i32,
-    /// 当天的记录总数
+    /// 当天训练过的动作数量
     pub count: i32,
 }
 
@@ -457,16 +457,16 @@ impl Database {
         })
     }
 
-    /// 获取某年某月下每天有几次记录
-    pub async fn get_daily_record_count(
+    /// 获取某年某月下每天练了几个动作
+    pub async fn get_daily_exercise_count(
         &self,
         year: i32,
         month: u32,
-    ) -> Result<Vec<DailyRecordCount>, sqlx::Error> {
-        sqlx::query_as::<_, DailyRecordCount>(
+    ) -> Result<Vec<DailyExerciseCount>, sqlx::Error> {
+        sqlx::query_as::<_, DailyExerciseCount>(
             "SELECT
             CAST(strftime('%d', created_at) AS INTEGER) as day,
-            CAST(COUNT(*) AS INTEGER) as count
+            CAST(COUNT(DISTINCT exercise_id) AS INTEGER) as count
          FROM records
          WHERE strftime('%Y-%m', created_at) = ?
          GROUP BY day
@@ -662,24 +662,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_daily_record_count() {
+    async fn test_get_daily_exercise_count() {
         let dir = tempdir().expect("创建临时目录失败");
         let path = dir.path().to_str().expect("路径转换失败");
         let db = Database::new(path).await.expect("数据库初始化失败");
 
         // 1. 准备基础数据
         let r_id = db.create_routine("胸部", "基础计划").await.unwrap();
-        let e_id = db
+        let e1_id = db
             .add_exercise(r_id, "卧推", 4, "10", "", "kg")
             .await
             .unwrap();
+        let e2_id = db
+            .add_exercise(r_id, "上斜卧推", 4, "10", "", "kg")
+            .await
+            .unwrap();
 
-        // 2. 添加记录（初始创建时间都会是 CURRENT_TIMESTAMP 即当天）
-        let rec1 = db.add_record(e_id, 40.0, Some(10)).await.unwrap();
-        let rec2 = db.add_record(e_id, 40.0, Some(10)).await.unwrap();
-        let rec3 = db.add_record(e_id, 45.0, Some(8)).await.unwrap();
-        let rec4 = db.add_record(e_id, 50.0, Some(5)).await.unwrap();
-        let rec5_out_of_bounds = db.add_record(e_id, 50.0, Some(5)).await.unwrap();
+        // 2. 添加记录（同一天的同一动作多条记录，只应算 1 个动作）
+        let rec1 = db.add_record(e1_id, 40.0, Some(10)).await.unwrap();
+        let rec2 = db.add_record(e1_id, 40.0, Some(10)).await.unwrap();
+        let rec3 = db.add_record(e1_id, 45.0, Some(8)).await.unwrap();
+        let rec4 = db.add_record(e2_id, 50.0, Some(5)).await.unwrap();
+        let rec5 = db.add_record(e1_id, 50.0, Some(5)).await.unwrap();
+        let rec6_out_of_bounds = db.add_record(e2_id, 50.0, Some(5)).await.unwrap();
 
         // 3. 修改记录时间：通过直接操作底层的 db.pool 来篡改 created_at
         // 因为测试模块使用了 `use super::*`，所以可以合法访问父模块的私有字段 db.pool
@@ -699,18 +704,24 @@ mod tests {
             .await
             .unwrap();
 
-        // -> 归属到 2026年4月12日（1条记录）
+        // -> 归属到 2026年4月12日（2 个动作）
         sqlx::query(update_time_query)
             .bind("2026-04-12 14:00:00")
             .bind(rec3)
             .execute(&db.pool)
             .await
             .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-12 18:30:00")
+            .bind(rec4)
+            .execute(&db.pool)
+            .await
+            .unwrap();
 
-        // -> 归属到 2026年4月28日（1条记录）
+        // -> 归属到 2026年4月28日（1 个动作）
         sqlx::query(update_time_query)
             .bind("2026-04-28 20:00:00")
-            .bind(rec4)
+            .bind(rec5)
             .execute(&db.pool)
             .await
             .unwrap();
@@ -718,22 +729,22 @@ mod tests {
         // -> 归属到 2026年5月1日（1条记录，用于验证它不会被 4 月的查询统计进去）
         sqlx::query(update_time_query)
             .bind("2026-05-01 10:00:00")
-            .bind(rec5_out_of_bounds)
+            .bind(rec6_out_of_bounds)
             .execute(&db.pool)
             .await
             .unwrap();
 
         // 4. 执行测试：查询 2026 年 4 月的数据
-        let daily_counts = db.get_daily_record_count(2026, 4).await.unwrap();
+        let daily_counts = db.get_daily_exercise_count(2026, 4).await.unwrap();
 
         // 5. 验证结果
         assert_eq!(daily_counts.len(), 3, "2026年4月应该只有3天包含训练记录");
 
         assert_eq!(daily_counts[0].day, 5);
-        assert_eq!(daily_counts[0].count, 2);
+        assert_eq!(daily_counts[0].count, 1);
 
         assert_eq!(daily_counts[1].day, 12);
-        assert_eq!(daily_counts[1].count, 1);
+        assert_eq!(daily_counts[1].count, 2);
 
         assert_eq!(daily_counts[2].day, 28);
         assert_eq!(daily_counts[2].count, 1);
