@@ -2,13 +2,6 @@
   <q-page class="routines-page q-pa-md column">
     <Header title="训练计划" :showBack="true" :rightAction="rightAction"/>
 
-    <section class="page-summary q-mb-md">
-      <div class="text-caption text-grey-7">计划总览</div>
-      <div class="text-subtitle1 text-weight-medium">
-        共 {{ routines.length }} 个训练计划
-      </div>
-    </section>
-
     <div class="row q-col-gutter-md q-pb-xl" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
         <RoutineCard
@@ -258,14 +251,6 @@ onMounted(() => {
       linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
 }
 
-.page-summary {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(27, 42, 58, 0.08);
-  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
-}
-
 .empty-state {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.72);
@@ -274,11 +259,5 @@ onMounted(() => {
 
 .dialog-card {
   border-radius: 18px;
-}
-
-@media (max-width: 600px) {
-  .page-summary {
-    padding: 12px;
-  }
 }
 </style>
