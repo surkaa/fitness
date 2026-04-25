@@ -531,6 +531,7 @@ onMounted(() => {
   border-radius: 14px;
   background: rgba(248, 251, 255, 0.92);
   overflow: hidden;
+  padding: 6px 12px;
 }
 
 .exercise-detail-item.is-expanded {
@@ -543,7 +544,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px 4px;
   border: 0;
   background: transparent;
   text-align: left;
@@ -555,7 +556,7 @@ onMounted(() => {
 
 .exercise-records {
   border-top: 1px solid rgba(27, 42, 58, 0.08);
-  padding: 4px 14px 10px;
+  padding: 4px 4px 10px;
 }
 
 .exercise-record-row {
@@ -686,10 +687,9 @@ onMounted(() => {
     padding: 12px;
   }
 
-  .exercise-summary,
-  .exercise-record-row {
-    padding-left: 0;
-    padding-right: 0;
+  .exercise-detail-item {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 }
 </style>
