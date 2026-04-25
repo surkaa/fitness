@@ -29,6 +29,27 @@
       </div>
     </div>
 
+    <section v-if="lastActiveRoutine" class="continue-panel q-mb-md">
+      <div class="row items-center justify-between q-col-gutter-md">
+        <div class="col">
+          <div class="text-caption text-grey-7">最近训练</div>
+          <div class="text-subtitle1 text-weight-medium">{{ lastActiveRoutine.routineName }}</div>
+          <div class="text-caption text-grey-7 q-mt-xs">
+            上次训练：{{ formatRecordDate(lastActiveRoutine.lastTrainedAt) }}
+          </div>
+        </div>
+        <div class="col-auto">
+          <q-btn
+              unelevated
+              color="primary"
+              icon="play_arrow"
+              label="继续上次训练"
+              @click="continueLastTraining"
+          />
+        </div>
+      </div>
+    </section>
+
     <div
         ref="viewportRef"
         class="calendar-viewport"
@@ -144,7 +165,7 @@ import {useRouter} from "vue-router";
 import {date, useQuasar} from "quasar";
 import Header from "../components/Header.vue";
 import api from "../utils/api.ts";
-import {DailyExerciseCount, DayExerciseRecords} from "../bindings.ts";
+import {DailyExerciseCount, DayExerciseRecords, LastActiveRoutine} from "../bindings.ts";
 import {HeaderPrimaryAction} from "../types.ts";
 import {formatRecordDate} from "../utils/format.ts";
 import {formatUnit} from "../utils/unitConvert.ts";
@@ -182,6 +203,7 @@ const selectedDateKey = ref(formatDateKey(new Date()));
 const selectedDayDetails = ref<DayExerciseRecords[]>([]);
 const dayDetailsLoading = ref(false);
 const expandedExerciseId = ref<number | null>(null);
+const lastActiveRoutine = ref<LastActiveRoutine | null>(null);
 const monthCache = reactive<Record<string, MonthStats | undefined>>({});
 const loadingMonths = reactive<Record<string, boolean>>({});
 
@@ -348,6 +370,15 @@ async function preloadWindow(anchor: Date) {
   ]);
 }
 
+async function loadLastActiveRoutine() {
+  try {
+    lastActiveRoutine.value = await api.getLastActiveRoutine();
+  } catch (e) {
+    lastActiveRoutine.value = null;
+    $q.notify({type: 'negative', message: `加载最近训练失败: ${e}`});
+  }
+}
+
 async function loadDayTrainingDetails(dateKey: string) {
   dayDetailsLoading.value = true;
   expandedExerciseId.value = null;
@@ -366,6 +397,17 @@ function goToToday() {
   selectedDateKey.value = formatDateKey(new Date());
   preloadWindow(currentMonth.value);
   loadDayTrainingDetails(selectedDateKey.value);
+}
+
+function continueLastTraining() {
+  if (!lastActiveRoutine.value) return;
+  router.push({
+    name: 'RoutineDetail',
+    params: {id: lastActiveRoutine.value.routineId},
+    state: {
+      name: lastActiveRoutine.value.routineName
+    }
+  });
 }
 
 function handleDayClick(cell: CalendarCell) {
@@ -453,6 +495,7 @@ function animateToMonth(direction: -1 | 1) {
 onMounted(() => {
   preloadWindow(currentMonth.value);
   loadDayTrainingDetails(selectedDateKey.value);
+  loadLastActiveRoutine();
 });
 </script>
 
@@ -465,6 +508,14 @@ onMounted(() => {
 
 .calendar-toolbar {
   padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.continue-panel {
+  padding: 14px 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(27, 42, 58, 0.08);
@@ -681,6 +732,10 @@ onMounted(() => {
 
 @media (max-width: 600px) {
   .calendar-toolbar {
+    padding: 12px;
+  }
+
+  .continue-panel {
     padding: 12px;
   }
 

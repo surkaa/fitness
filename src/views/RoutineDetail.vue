@@ -98,7 +98,7 @@ const exerciseStore = useExerciseStore();
 
 // 路由参数 ID
 const routineId = Number(route.params.id);
-const routineName = history.state.name;
+const routineName = ref<string>((history.state.name as string) || '');
 
 // 状态
 const exercises = ref<Exercise[]>([]);
@@ -238,6 +238,17 @@ onMounted(() => {
     $q.notify({type: 'negative', message: '无效的轮次ID'});
     router.back();
     return;
+  }
+  if (!routineName.value) {
+    api.getRoutine(routineId)
+        .then(routine => {
+          if (routine) {
+            routineName.value = routine.name;
+          }
+        })
+        .catch(e => {
+          $q.notify({type: 'negative', message: `获取计划名称失败: ${e}`});
+        });
   }
   loadData();
 });

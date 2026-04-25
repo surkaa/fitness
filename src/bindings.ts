@@ -19,6 +19,17 @@ async getRoutines() : Promise<Result<Routine[], string>> {
 }
 },
 /**
+ * 获取单个轮次
+ */
+async getRoutine(routineId: number) : Promise<Result<Routine | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_routine", { routineId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * 创建轮次
  */
 async createRoutine(name: string, desc: string) : Promise<Result<number, string>> {
@@ -211,6 +222,14 @@ async getDayTrainingDetails(day: string) : Promise<Result<DayExerciseRecords[], 
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getLastActiveRoutine() : Promise<Result<LastActiveRoutine | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_last_active_routine") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -257,6 +276,7 @@ note: string | null;
 unit: string }
 export type ExerciseStats = { exerciseId: number; totalRecords: number; maxWeight: number | null; lastDate: number }
 export type ExportData = { routines: Routine[]; exercises: Exercise[]; records: Record[] }
+export type LastActiveRoutine = { routineId: number; routineName: string; lastTrainedAt: number }
 export type Record = { id: number; exerciseId: number; 
 /**
  * 记录时间

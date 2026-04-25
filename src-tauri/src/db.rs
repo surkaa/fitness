@@ -15,6 +15,16 @@ pub struct Routine {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LastActiveRoutine {
+    pub routine_id: i32,
+    pub routine_name: String,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    #[specta(type = f64)]
+    pub last_trained_at: DateTime<Utc>,
+}
+
 // 动作 (比如: "杠铃卧推", 包含单位配置)
 #[derive(Debug, Serialize, Deserialize, FromRow, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -187,6 +197,14 @@ impl Database {
     pub async fn get_routines(&self) -> Result<Vec<Routine>, sqlx::Error> {
         sqlx::query_as::<_, Routine>("SELECT * FROM routines ORDER BY id")
             .fetch_all(&self.pool)
+            .await
+    }
+
+    /// 获取单个轮次
+    pub async fn get_routine(&self, routine_id: i32) -> Result<Option<Routine>, sqlx::Error> {
+        sqlx::query_as::<_, Routine>("SELECT * FROM routines WHERE id = ?")
+            .bind(routine_id)
+            .fetch_optional(&self.pool)
             .await
     }
 
@@ -498,6 +516,23 @@ impl Database {
         )
         .bind(format!("{:04}-{:02}", year, month))
         .fetch_all(&self.pool)
+        .await
+    }
+
+    /// 获取最近训练过的轮次
+    pub async fn get_last_active_routine(&self) -> Result<Option<LastActiveRoutine>, sqlx::Error> {
+        sqlx::query_as::<_, LastActiveRoutine>(
+            "SELECT
+                rt.id AS routine_id,
+                rt.name AS routine_name,
+                r.created_at AS last_trained_at
+            FROM records r
+            JOIN exercises e ON r.exercise_id = e.id
+            JOIN routines rt ON e.routine_id = rt.id
+            ORDER BY r.created_at DESC, r.id DESC
+            LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
         .await
     }
 
@@ -889,5 +924,46 @@ mod tests {
         assert_eq!(details[1].exercise.name, "划船");
         assert_eq!(details[1].routine_name, "背部");
         assert_eq!(details[1].records.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_last_active_routine() {
+        let dir = tempdir().expect("创建临时目录失败");
+        let path = dir.path().to_str().expect("路径转换失败");
+        let db = Database::new(path).await.expect("数据库初始化失败");
+
+        assert!(db.get_last_active_routine().await.unwrap().is_none());
+
+        let chest_id = db.create_routine("胸部", "").await.unwrap();
+        let leg_id = db.create_routine("腿部", "").await.unwrap();
+        let bench_id = db
+            .add_exercise(chest_id, "卧推", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+        let squat_id = db
+            .add_exercise(leg_id, "深蹲", 4, "8-12", "", "kg")
+            .await
+            .unwrap();
+
+        let rec1 = db.add_record(bench_id, 80.0, Some(8)).await.unwrap();
+        let rec2 = db.add_record(squat_id, 100.0, Some(5)).await.unwrap();
+        let update_time_query = "UPDATE records SET created_at = ? WHERE id = ?";
+
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 08:00:00")
+            .bind(rec1)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query(update_time_query)
+            .bind("2026-04-16 18:00:00")
+            .bind(rec2)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        let last_active = db.get_last_active_routine().await.unwrap().unwrap();
+        assert_eq!(last_active.routine_id, leg_id);
+        assert_eq!(last_active.routine_name, "腿部");
     }
 }

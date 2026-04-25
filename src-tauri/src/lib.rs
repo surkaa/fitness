@@ -1,4 +1,4 @@
-use crate::db::{DailyExerciseCount, DayExerciseRecords, ExportData};
+use crate::db::{DailyExerciseCount, DayExerciseRecords, ExportData, LastActiveRoutine, Routine};
 use chrono::{DateTime, Utc};
 use std::fs;
 use tauri::{AppHandle, Manager, State};
@@ -11,6 +11,16 @@ mod db;
 #[specta::specta]
 async fn get_routines(state: State<'_, db::Database>) -> Result<Vec<db::Routine>, String> {
     state.get_routines().await.map_err(|e| e.to_string())
+}
+
+/// 获取单个轮次
+#[tauri::command]
+#[specta::specta]
+async fn get_routine(
+    state: State<'_, db::Database>,
+    routine_id: i32,
+) -> Result<Option<Routine>, String> {
+    state.get_routine(routine_id).await.map_err(|e| e.to_string())
 }
 
 /// 创建轮次
@@ -240,6 +250,17 @@ async fn get_day_training_details(
 
 #[tauri::command]
 #[specta::specta]
+async fn get_last_active_routine(
+    state: State<'_, db::Database>,
+) -> Result<Option<LastActiveRoutine>, String> {
+    state
+        .get_last_active_routine()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 async fn import_db_from_bytes(
     state: State<'_, db::Database>,
     bytes: Vec<u8>,
@@ -281,6 +302,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     let builder =
         tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
             get_routines,
+            get_routine,
             create_routine,
             delete_routine,
             update_routine,
@@ -301,6 +323,7 @@ fn generate_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             export_some_data,
             get_daily_exercise_count,
             get_day_training_details,
+            get_last_active_routine,
         ]);
 
     #[cfg(debug_assertions)]
