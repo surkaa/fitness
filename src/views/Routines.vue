@@ -1,6 +1,13 @@
 <template>
-  <q-page class="q-pa-md column">
+  <q-page class="routines-page q-pa-md column">
     <Header title="训练计划" :rightAction="rightAction"/>
+
+    <section class="page-summary q-mb-md">
+      <div class="text-caption text-grey-7">计划总览</div>
+      <div class="text-subtitle1 text-weight-medium">
+        共 {{ routines.length }} 个训练计划
+      </div>
+    </section>
 
     <div class="row q-col-gutter-md q-pb-xl" v-if="routines.length">
       <div class="col-12 col-sm-6" v-for="r in routines" :key="r.id">
@@ -13,9 +20,9 @@
       </div>
     </div>
 
-    <div v-else-if="!loading" class="col flex flex-center column text-grey">
-      <q-icon name="fitness_center" size="64px"/>
-      <div class="q-mt-md text-h6" style="opacity: 0.7">
+    <div v-else-if="!loading" class="empty-state col flex flex-center column text-grey">
+      <q-icon name="fitness_center" size="56px"/>
+      <div class="q-mt-md text-h6" style="opacity: 0.78">
         还没有训练计划
       </div>
       <div class="text-caption">点击右下角添加</div>
@@ -27,7 +34,7 @@
   </q-page>
 
   <q-dialog v-model="showAddDialog" @hide="resetForm">
-    <q-card style="min-width: 350px">
+    <q-card class="dialog-card" style="min-width: 350px">
       <q-card-section>
         <div class="text-h6">{{ isEditing ? '编辑训练计划' : '新建训练计划' }}</div>
       </q-card-section>
@@ -243,3 +250,35 @@ onMounted(() => {
   }).finally(() => loading.value = false);
 });
 </script>
+
+<style scoped>
+.routines-page {
+  background:
+      radial-gradient(circle at top left, rgba(25, 118, 210, 0.1), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
+.page-summary {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 42, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 42, 58, 0.06);
+}
+
+.empty-state {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px dashed rgba(27, 42, 58, 0.12);
+}
+
+.dialog-card {
+  border-radius: 18px;
+}
+
+@media (max-width: 600px) {
+  .page-summary {
+    padding: 12px;
+  }
+}
+</style>
