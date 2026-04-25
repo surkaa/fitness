@@ -192,9 +192,9 @@ const $q = useQuasar();
 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 const legendItems = [
   {label: '未训练', className: 'level-0'},
-  {label: '1-3 个动作', className: 'level-1'},
-  {label: '4-5 个动作', className: 'level-2'},
-  {label: '6+ 个动作', className: 'level-3'},
+  {label: '1-3 动作', className: 'level-1'},
+  {label: '4-5 动作', className: 'level-2'},
+  {label: '6+ 动作', className: 'level-3'},
 ];
 
 const currentMonth = ref(startOfMonth(new Date()));
