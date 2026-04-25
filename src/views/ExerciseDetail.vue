@@ -27,9 +27,6 @@
 
     <div class="row items-center q-mb-sm q-px-sm">
       <div class="text-h6">历史记录</div>
-      <div class="text-caption text-grey q-ml-md">
-        历时{{ dailyAveraged.length }}天，共训练{{ records.length }}组
-      </div>
     </div>
 
     <div class="col scroll">
