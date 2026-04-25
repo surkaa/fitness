@@ -16,8 +16,8 @@
             </div>
           </div>
 
-          <div class="text-subtitle2 text-grey-7 routine-description">
-            {{ routine.description || '未填写说明' }}
+          <div v-if="routine.description" class="text-subtitle2 text-grey-7 routine-description">
+            {{ routine.description }}
           </div>
         </div>
 

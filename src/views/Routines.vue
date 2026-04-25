@@ -1,6 +1,6 @@
 <template>
   <q-page class="routines-page q-pa-md column">
-    <Header title="训练计划" :rightAction="rightAction"/>
+    <Header title="训练计划" :showBack="true" :rightAction="rightAction"/>
 
     <section class="page-summary q-mb-md">
       <div class="text-caption text-grey-7">计划总览</div>
